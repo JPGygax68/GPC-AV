@@ -1,1 +1,1 @@
-include("${CMAKE_CURRENT_LIST_DIR}/libGPCGLUtils-targets.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/libGPC-AVpp-targets.cmake")
