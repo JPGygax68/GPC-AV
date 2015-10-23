@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include <string>
 
 namespace gpc {
@@ -9,10 +10,21 @@ namespace gpc {
         class Source {
         public:
 
-            /* Open a stream by its URL.
-             */
-            static auto open(const std::string &url) -> Source;
+            Source();
+            Source(Source&& orig);
+            ~Source();
 
+            void open(const std::string &url);
+
+            /* Open a source by its URL.
+             */
+            static auto create(const std::string &url) -> Source;
+
+        private:
+
+            struct Private;
+
+            std::unique_ptr<Private>    p;
         };
 
     } // ns av
