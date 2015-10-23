@@ -5,12 +5,11 @@ extern "C" {
 }
 #pragma warning(pop)
 
+#include <gpc/_av/config.hpp>
+
 #include "../include/gpc/av" // TODO: this may not be the best way to obtain the contract
 
-#define NAMESPACE_START namespace gpc { namespace av {
-#define NAMESPACE_END } }
-
-NAMESPACE_START
+GPC_AV_NAMESPACE_START
     
 // PIMPL DECLARATION ----------------------------------------
 
@@ -47,6 +46,7 @@ static struct Initializer {
 
 void Source::Private::_open(const std::string &url)
 {
+    
 }
 
-NAMESPACE_END
+GPC_AV_NAMESPACE_END

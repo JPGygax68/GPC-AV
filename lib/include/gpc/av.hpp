@@ -3,30 +3,33 @@
 #include <memory>
 #include <string>
 
-namespace gpc {
-    
-    namespace av {
+#ifndef NO_DEMUXER
+#include "_av/Demuxer.hpp"
+#endif
+#include "_av/config.hpp"
+
+GPC_AV_NAMESPACE_START
         
-        class Source {
-        public:
+// TODO: remove? or move to separate header file ?
 
-            Source();
-            Source(Source&& orig);
-            ~Source();
+class Source {
+public:
 
-            void open(const std::string &url);
+    Source();
+    Source(Source&& orig);
+    ~Source();
 
-            /* Open a source by its URL.
-             */
-            static auto create(const std::string &url) -> Source;
+    void open(const std::string &url);
 
-        private:
+    /* Open a source by its URL.
+        */
+    static auto create(const std::string &url) -> Source;
 
-            struct Private;
+private:
 
-            std::unique_ptr<Private>    p;
-        };
+    struct Private;
 
-    } // ns av
-    
-} // ns gpc
+    std::unique_ptr<Private>    p;
+};
+
+GPC_AV_NAMESPACE_END
