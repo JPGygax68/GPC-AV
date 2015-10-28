@@ -6,6 +6,9 @@
 #ifndef NO_DEMUXER
 #include "_av/Demuxer.hpp"
 #endif
+#ifndef NO_STREAM
+#include "_av/Stream.hpp"
+#endif
 #include "_av/config.hpp"
 
 GPC_AV_NAMESPACE_START

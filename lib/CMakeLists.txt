@@ -3,6 +3,7 @@ project("libGPC-AVpp")
 set(SOURCE_FILES 
   "src/av.cpp" 
   "src/Demuxer.cpp" 
+  "src/Stream.cpp" 
   "src/Error.cpp"
 )
 
@@ -11,8 +12,9 @@ set(HEADER_FILES
   "include/gpc/av.hpp"
   "include/gpc/_av/config.hpp"
   "include/gpc/_av/Demuxer.hpp"
+  "include/gpc/_av/Stream.hpp"
   "include/gpc/_av/Error.hpp"
-  "include/gpc/_av/checked_calls.hpp"
+  "src/checked_calls.hpp"
 )
 
 add_library("libGPC-AVpp" STATIC ${SOURCE_FILES} ${HEADER_FILES})

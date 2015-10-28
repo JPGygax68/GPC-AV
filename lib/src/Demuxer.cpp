@@ -1,4 +1,6 @@
 #include <cassert>
+#include <thread>
+#include <iostream>
 
 extern "C" {
 #include "libavformat/avformat.h"
@@ -17,26 +19,46 @@ GPC_AV_NAMESPACE_START
 struct Demuxer::Private {
 
     AVFormatContext *format_context;
+    std::thread      reader_thread;
 
     Private();
     ~Private();
 
     void _open(const std::string &url);
+
+    void reader_loop();
 };
 
 // LIFECYCLE --------------------------------------------------------
 
-Demuxer::Demuxer(): p(new Private()) {}
-
-Demuxer::~Demuxer() { delete p; }
-
-auto Demuxer::create(const std::string &url) -> Demuxer&&
+Demuxer::Demuxer(): p(new Private())
 {
-    Demuxer demux;
+    std::cerr << "Demuxer ctor called" << std::endl;
+}
 
-    demux.p->_open(url);
+Demuxer::~Demuxer() 
+{ 
+    std::cerr << "Demuxer dtor called" << std::endl;
+}
 
-    return std::move(demux);
+Demuxer::Demuxer(Demuxer&&) = default;
+
+//Demuxer& Demuxer::operator = (Demuxer&&) = default;
+
+Demuxer& Demuxer::operator = (Demuxer&& from)
+{
+	p.swap(from.p);
+
+	return *this;
+}
+
+auto Demuxer::create(const std::string &url) -> Demuxer*
+{
+	Demuxer *demux = new Demuxer();
+
+    demux->p->_open(url);
+
+	return demux;
 }
 
 // MODULE INITIALIZER ----------------------------------------------
@@ -50,12 +72,16 @@ static struct ModInit {
 // PRIVATE IMPLEMENTATION (PIMPL) ----------------------------------
 
 Demuxer::Private::Private():
-    format_context(nullptr)
+    format_context(nullptr),
+    reader_thread(std::bind(&Private::reader_loop, this))
 {
 }
 
 Demuxer::Private::~Private()
 {
+	std::cout << "Demuxer::Private dtor called" << std::endl;
+
+    reader_thread.join();
 }
 
 void Demuxer::Private::_open(const std::string &url)
@@ -63,6 +89,10 @@ void Demuxer::Private::_open(const std::string &url)
     assert(!format_context);
 
     _av(avformat_open_input, &format_context, url.c_str(), nullptr, nullptr); // TODO: support options in last parameter
+}
+
+void Demuxer::Private::reader_loop()
+{
 }
 
 GPC_AV_NAMESPACE_END
