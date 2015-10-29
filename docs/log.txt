@@ -1,0 +1,15 @@
+2015-10-29
+==========
+
+About queues, frames etc.
+-------------------------
+
+- Since individual streams within a stream bundle do not necessarily have the same packet rate, each stream must maintain its own queue.
+
+- Therefore, queue sizes should be chosen carefully so as to avoid one queue being full while the other is still being filled.
+
+- Right now, there is no time to properly handle synchronization, which is a complex subject.
+
+- However, it ought to be possible to have the software compute queue sizes automatically from available metadata (frame rate, sample rate and size).
+
+- For now, queues will be allowed to grow indefinitely (with an automatic abort when a generous limit is exceeded)

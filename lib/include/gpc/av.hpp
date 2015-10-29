@@ -7,12 +7,25 @@
 #include "_av/Demuxer.hpp"
 #endif
 #ifndef NO_STREAM
-#include "_av/Stream.hpp"
+#include "_av/Decoder.hpp"
 #endif
 #include "_av/config.hpp"
 
 GPC_AV_NAMESPACE_START
-        
+    
+/* The following is copied from avutil.h
+ */
+enum AVMediaType
+{
+    UNKNOWN = -1    ///< Usually treated DATA
+  , VIDEO
+  , AUDIO
+  , DATA            ///< Opaque data information usually continuous
+  , SUBTITLE
+  , ATTACHMENT      ///< Opaque data information usually sparse
+  , NB    
+}; 
+
 // TODO: remove? or move to separate header file ?
 
 class Source {

@@ -7,6 +7,8 @@
 
 GPC_AV_NAMESPACE_START
 
+class VideoDecoder;
+
 class Demuxer {
 public:
 
@@ -18,6 +20,8 @@ public:
     static auto create(const std::string &url) -> Demuxer*;
 
     void open(const std::string &url);
+
+    auto get_video_decoder() -> VideoDecoder&;
 
 private:
     struct Private;

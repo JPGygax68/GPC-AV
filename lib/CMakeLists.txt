@@ -3,7 +3,8 @@ project("libGPC-AVpp")
 set(SOURCE_FILES 
   "src/av.cpp" 
   "src/Demuxer.cpp" 
-  "src/Stream.cpp" 
+  "src/Decoder.cpp" 
+  "src/VideoDecoder.cpp"
   "src/Error.cpp"
 )
 
@@ -12,7 +13,8 @@ set(HEADER_FILES
   "include/gpc/av.hpp"
   "include/gpc/_av/config.hpp"
   "include/gpc/_av/Demuxer.hpp"
-  "include/gpc/_av/Stream.hpp"
+  "include/gpc/_av/Decoder.hpp"
+  "include/gpc/_av/VideoDecoder.hpp"
   "include/gpc/_av/Error.hpp"
   "src/checked_calls.hpp"
 )
