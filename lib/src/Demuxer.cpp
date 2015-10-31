@@ -27,8 +27,6 @@ struct Demuxer::Private {
     AVFormatContext                *format_context;
     std::unique_ptr<VideoDecoder>   video_decoder;
     std::thread                     reader_thread;
-	std::mutex		                queue_mutex;
-	std::condition_variable	        queue_condvar;
     bool                            terminate;
 
     Private();
@@ -133,7 +131,6 @@ void Demuxer::Private::reader_loop()
         while (!terminate)
         {
             auto queue_size = [this]() {
-                std::unique_lock<std::mutex> lock(queue_mutex);
                 return 0;
             }();
         }

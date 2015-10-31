@@ -6,6 +6,7 @@ set(SOURCE_FILES
   "src/Decoder.cpp" 
   "src/VideoDecoder.cpp"
   "src/Error.cpp"
+  "src/Frame.cpp"
 )
 
 set(HEADER_FILES 
@@ -16,6 +17,7 @@ set(HEADER_FILES
   "include/gpc/_av/Decoder.hpp"
   "include/gpc/_av/VideoDecoder.hpp"
   "include/gpc/_av/Error.hpp"
+  "include/gpc/_av/Frame.hpp"
   "src/checked_calls.hpp"
 )
 

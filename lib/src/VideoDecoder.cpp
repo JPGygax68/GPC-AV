@@ -1,117 +1,27 @@
 #include <cassert>
-#include <vector>
+#include <deque>
 #include <thread>
 #include <mutex>
 #include <condition_variable>
+
 extern "C" {
 #include "libavformat/avformat.h"
 }
+
+#include <gpc/_av/Frame.hpp>
 
 #include <gpc/_av/VideoDecoder.hpp>
 #include "checked_calls.hpp"
 
 GPC_AV_NAMESPACE_START
 
+using namespace std;
+
 // GLOBAL PRIVATE CONSTANTS -----------------------------------------
 
-static const size_t FRAME_QUEUE_SIZE = 10;
+static const size_t MAX_BUFFERED_FRAMES = 10;
 
 // PRIVATE CLASSES --------------------------------------------------
-
-class FrameQueue {
-public:
-
-    void initialize()
-    {
-        assert(queue.empty());
-
-        for (auto i = 0U; i < FRAME_QUEUE_SIZE; i++) queue.push_back(_av(av_frame_alloc));
-        for (auto i = 0U; i < FRAME_QUEUE_SIZE; i++) writeable_cv.notify_one();
-    }
-
-    void cleanup()
-    {
-        for (auto f : queue) av_free(f);
-        queue.resize(0);
-    }
-
-    /*  Returns the next frame that is available for writing (i.e. for *produc*ing).
-        This function will wait on the condition variable.
-        Every call to get_next_writeable_frame() must be followed by a call to
-        frame_filled(), except when the queue is being torn down.
-        IMPORTANT: every call to get_next_writeable_frame() must be followed
-        by a call to frame_filled(), except when the queue is being torn down.
-     */
-    auto get_next_writeable_frame() -> AVFrame*
-    {
-        // Wait for a Frame to become available for writing
-        std::unique_lock<std::mutex> lk(mutex);
-        writeable_cv.wait(lk, [this]() { return tearing_down || writeable_count > 0; });
-        if (tearing_down) return nullptr;
-
-        // Update the count and return the frame
-        writeable_count--;
-        return queue[writeable_index];
-    }
-
-    /** The producer MUST call this after it has filled the frame it obtained
-        via get_next_writeable_frame().
-     */
-    void frame_filled()
-    {
-        // Move on to next writeable frame
-        writeable_index++;
-        writeable_index %= queue.size();
-
-        // Frame available for consumption
-        readable_count++;
-        readable_cv.notify_one();
-    }
-
-    /** Returns the next frame ready for reading (consumption).
-        Will suspend the caller until a frame becomes available or the queue
-        is being torn down, in which case it will return nullptr.
-        IMPORTANT: each call to get_next_readable_frame() must be followed
-        by a call to frame_consumed(), except when the queue is being torn
-        down.
-        */
-    auto get_next_readable_frame() -> AVFrame*
-    {
-        // Wait for a Frame to become available for writing
-        std::unique_lock<std::mutex> lk(mutex);
-        readable_cv.wait(lk, [this]() { return tearing_down || readable_count > 0; });
-        if (tearing_down) return nullptr;
-
-        // Update the count and return the frame
-        readable_count--;
-        return queue[readable_index];
-    }
-
-    /** The consumer MUST call this after it is done with the frame obtained
-        via get_next_readable_frame().
-     */
-    void frame_consumed()
-    {
-        // Move on to next writeable frame
-        readable_index++;
-        readable_index %= queue.size();
-
-        // Frame available for consumption
-        writeable_count++;
-        writeable_cv.notify_one();
-    }
-
-private:
-    std::vector<AVFrame*>       queue;
-    unsigned int                writeable_index;
-    unsigned int                readable_index;
-    std::condition_variable     writeable_cv;
-    std::condition_variable     readable_cv;
-    unsigned int                readable_count;
-    unsigned int                writeable_count;
-    std::mutex                  mutex;
-    bool                        tearing_down;
-};
 
 // PIMPL DECLARATION ------------------------------------------------
 
@@ -119,12 +29,21 @@ struct VideoDecoder::Impl {
 
     AVCodecContext         *context;
     AVCodec                *codec;
-    FrameQueue              frame_queue;
+    deque<AVFrame*>         queued_frames;      // Frames available for filling (front is being filled now or next)
+    deque<AVFrame*>         ready_frames;       // Frames ready for consumption
+    mutex                   frames_mutex;       // Lock this to modify either of the above deques
+    int                     got_frame;
 
     Impl(AVCodecContext *ctx_, AVCodec *codec_);
     ~Impl();
 
-    void close();
+    void initialize();
+    void cleanup();
+
+    bool decode_packet(AVPacket *packet);       // Returns true if a frame was obtained
+    bool frame_available();
+    auto get_nextframe() -> Frame;
+    void recycle_frame(Frame &&frame);
 
     friend class VideoDecoderImpl;
 };
@@ -168,6 +87,36 @@ auto VideoDecoder::createFromStream(void *stream_) -> VideoDecoder *
     return new VideoDecoder(impl);
 }
 
+void VideoDecoder::initialize()
+{
+    p->initialize();
+}
+
+void VideoDecoder::cleanup()
+{
+    p->cleanup();
+}
+
+bool VideoDecoder::decode_packet(void * packet)
+{
+    return p->decode_packet(static_cast<AVPacket*>(packet));
+}
+
+bool VideoDecoder::frame_available()
+{
+    return p->frame_available();
+}
+
+auto VideoDecoder::get_next_frame() -> Frame
+{
+    return p->get_nextframe();
+}
+
+void VideoDecoder::recycle_frame(Frame &&frame)
+{
+    p->recycle_frame(std::move(frame));
+}
+
 // PIMPL IMPLEMENTATION ---------------------------------------------
 
 VideoDecoder::Impl::Impl(AVCodecContext *ctx_, AVCodec *codec_): 
@@ -177,15 +126,63 @@ VideoDecoder::Impl::Impl(AVCodecContext *ctx_, AVCodec *codec_):
 
 VideoDecoder::Impl::~Impl()
 { 
-    close(); 
+    cleanup(); 
 }
 
-void VideoDecoder::Impl::close()
+void VideoDecoder::Impl::initialize()
+{
+    for (auto i = 0U; i < MAX_BUFFERED_FRAMES; i++) queued_frames.push_back(_av(av_frame_alloc));
+
+    got_frame = 0;
+}
+
+void VideoDecoder::Impl::cleanup()
 {
     if (context) {
         _av(avcodec_close, context);
         context = nullptr;
     }
+}
+
+bool VideoDecoder::Impl::decode_packet(AVPacket * packet)
+{
+    _av(avcodec_decode_video2, context, queued_frames.front(), &got_frame, packet);
+
+    if (got_frame)
+    {
+        // Move frame from "queued" to "ready" queues
+        lock_guard<mutex> lk(frames_mutex);
+        ready_frames.push_back(queued_frames.front());
+        queued_frames.pop_front();
+        // TODO: send signal to "subscribed" consumers?
+        got_frame = 0;
+        return true;
+    }
+    else return false;
+}
+
+bool VideoDecoder::Impl::frame_available()
+{
+    lock_guard<mutex> lk(frames_mutex);
+
+    return ! ready_frames.empty();
+}
+
+auto VideoDecoder::Impl::get_nextframe() -> Frame
+{
+    lock_guard<mutex> lk(frames_mutex);
+
+    auto frame = ready_frames.front();
+    ready_frames.pop_front();
+
+    return Frame(frame);
+}
+
+void VideoDecoder::Impl::recycle_frame(Frame &&frame)
+{
+    lock_guard<mutex> lk(frames_mutex);
+
+    queued_frames.push_back(frame.frame);
 }
 
 GPC_AV_NAMESPACE_END
