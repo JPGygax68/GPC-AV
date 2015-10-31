@@ -27,7 +27,7 @@ inline bool retval_ok(int retval) { return retval >= 0; }
 template <typename T>
 inline bool retval_ok(T *pointer) { return pointer != nullptr; }
 
-void throw_error(int errnum, const std::string &context) { throw Error(errnum, context); }
+inline void throw_error(int errnum, const std::string &context) { throw Error(errnum, context); }
 
 template <typename T> void throw_error(T *resptr, const std::string &context) { throw BadAllocation(context); }
 

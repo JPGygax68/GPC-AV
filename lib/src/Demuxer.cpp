@@ -73,7 +73,7 @@ auto Demuxer::create(const std::string &url) -> Demuxer*
 	return demux;
 }
 
-auto Demuxer::get_video_decoder() -> VideoDecoder&
+auto Demuxer::video_decoder() -> VideoDecoder&
 {
     return p->_get_video_decoder();
 }
@@ -118,6 +118,8 @@ auto Demuxer::Private::_get_video_decoder() -> VideoDecoder&
         if (st_idx < 0) throw Error(st_idx, "Could not find video stream in source");
 
         auto stream = format_context->streams[st_idx];
+
+        video_decoder.reset(VideoDecoder::createFromStream(stream));
     }
 
     return *video_decoder;

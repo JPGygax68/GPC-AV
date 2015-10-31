@@ -21,7 +21,7 @@ public:
 
     void open(const std::string &url);
 
-    auto get_video_decoder() -> VideoDecoder&;
+    auto video_decoder() -> VideoDecoder&;
 
 private:
     struct Private;
