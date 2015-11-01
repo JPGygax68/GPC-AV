@@ -32,8 +32,8 @@ struct Demuxer::Private {
     Private();
     ~Private();
 
-    void _open(const std::string &url);
-    auto _get_video_decoder() -> VideoDecoder&;
+    void open(const std::string &url);
+    auto get_video_decoder() -> VideoDecoder&;
 
     void reader_loop();
 };
@@ -66,14 +66,14 @@ auto Demuxer::create(const std::string &url) -> Demuxer*
 {
 	Demuxer *demux = new Demuxer();
 
-    demux->p->_open(url);
+    demux->p->open(url);
 
 	return demux;
 }
 
 auto Demuxer::video_decoder() -> VideoDecoder&
 {
-    return p->_get_video_decoder();
+    return p->get_video_decoder();
 }
 
 // MODULE INITIALIZER ----------------------------------------------
@@ -101,14 +101,14 @@ Demuxer::Private::~Private()
     reader_thread.join();
 }
 
-void Demuxer::Private::_open(const std::string &url)
+void Demuxer::Private::open(const std::string &url)
 {
     assert(!format_context);
 
     _av(avformat_open_input, &format_context, url.c_str(), nullptr, nullptr); // TODO: support options in last parameter
 }
 
-auto Demuxer::Private::_get_video_decoder() -> VideoDecoder&
+auto Demuxer::Private::get_video_decoder() -> VideoDecoder&
 {
     if (!video_decoder)
     {

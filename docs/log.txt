@@ -1,3 +1,54 @@
+2015-11-01
+==========
+
+How to make it so that both canned (file) and live (streamed) video play correctly "out of the box", AND still support random frame access ?
+
+How about introducing a Presenter object that takes care of these things ? Brainstorming:
+
+- Presenter handles the synchronizing of multiple streams (i.e. buffering/discarding until timestamps match)
+  - Only when starting consumption: discard frames or buffer slices that are older than the oldest available from all other streams (i.e. "earliest common timestamp")
+- The Presenter also controls the Demuxer when reading from storage, telling it to pause when enough "advance" frames have been stored?
+  -> Presenter assumes temporary ownership of Frames obtained from the Demuxer, only giving them back when it is done with them
+    -> This may lead to the Demuxer "starving"
+       -> Should the Demuxer be allowed to allocate more Frames?
+       -> Or should this be considered an error, terminating the reader thread and throwing an exception in the consumer thread ?
+  -> NO: the Demuxer's reader thread is an implementation detail; the interface only exposes pausing and seeking
+     -> when reading from storage, it is the Presenter's responsibility to give back frames as soon as it is done with them
+        -> the Demuxer starving should be considered a usage error (and thus, an internal error of the user code)
+- Speaking about seeking:
+  - If the target frame is not a key frame, Demuxer must seek back (does FFMPEG do that automatically?)
+    -> will lead to delay, and re-synching of streams
+       -> re-synching: may mean that seeking must go as far back as needed to fully compensate for streams that may be out of sync - does FFMPEG handle that too?
+       -> should there be queriable states, such as "playing", "seeking", "sychronizing", etc. ? Does FFMPEG already have them?
+  - It may make sense to continue playing buffered frames while the seeking is underway
+      
+Now to plan for the specific Presenter that is needed here: playing at nominal speed, no seeking (yet)
+
+- Obtaining the frames as YUV, using a shader to display
+- Keeping frames until they are no longer needed
+- Letting the Demuxer wait until it is given back at least one Frame
+- Remembers the real-world timestamp of the first frame (when starting to play or after a seek)
+- Tries to determine the actual presentation time by using the Windows API ?
+  -> There doesn't seem to be a call that does exactly that
+  -> DwmGetCompositionTimingInfo() might help when the DWM is enabled
+  -> SDL_DisplayMode has the refresh rate when SDL is used
+  -> Couldn't find off-hand a way to obtain that info from Windows
+  -> WON'T DO: too difficult for the time being
+- The presenter will simply determine the current time [accuracy is 10ms, maybe this should be improved upon via timeBeginPeriod() / timeEndPeriod(): https://msdn.microsoft.com/en-us/library/dd757624(v=vs.85).aspx]
+  - Upon presenting the first frame, the presenter shall calculate the difference to the presentation timestamp of that frame
+  - There are now two possible modi operandi:
+    1) The Presenter can be invoked periodically. This mode would work as follows: when present() is called,
+       - the Presenter will calculate the theoretical timestamp of the frame that should be displayed *right now* (= the "target timestamp")
+       - it will then go through available frames, from oldest to newest
+         - if the presentation timestamp of the frame is older than the target timestamp, the frame is returned to the Demuxer UNLESS no newer frame is available
+           - If playback is still in the beginning phase, this is very likely to happen. It means that the framerate of the media stream is lower than the framerate of the rendering loop.
+           - It would be possible to simply ignore this and do nothing more than re-render the newest available frame. However, this would make it impossible to distinguish between the expected behaviour at start of playback and abnormal behaviour later on when playback is past the starting phase.
+           - The correct way to handle this is to take the official stream framerate into account, and to register an anomaly only if the time elapsed since the last presentation exceeds one frame period (inverse of the framerate).
+           - Another thing to do, when that keeps happening, is to introduce an artificial delay in the playback, giving the Demuxer some slack to compensate for difficulties
+           
+
+
+
 2015-10-29
 ==========
 

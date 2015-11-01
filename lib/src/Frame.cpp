@@ -23,12 +23,12 @@ Frame::Frame(Frame&& from)
 
 Frame::Frame(const Frame& from)
 {
-    frame = av_frame_clone(from.frame);
+    frame = _av(av_frame_clone, from.frame);
 }
 
 Frame & Frame::operator = (const Frame &from)
 {
-    frame = av_frame_clone(from.frame);
+    frame = _av(av_frame_clone, from.frame);
 
     return *this;
 }
