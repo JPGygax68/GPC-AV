@@ -28,7 +28,7 @@ static const size_t MAX_BUFFERED_FRAMES = 10;
 
 // PIMPL DECLARATION ------------------------------------------------
 
-struct VideoDecoder_Impl: public DecoderBase::Impl {
+struct VideoDecoder::Impl: public DecoderBase::Impl {
 
     AVCodecContext         *context;
     AVCodec                *codec;
@@ -37,8 +37,8 @@ struct VideoDecoder_Impl: public DecoderBase::Impl {
     mutex                   frames_mutex;       // Lock this to modify either of the above deques
     int                     got_frame;
 
-    VideoDecoder_Impl(AVCodecContext *ctx_, AVCodec *codec_);
-    ~VideoDecoder_Impl();
+    Impl(AVCodecContext *ctx_, AVCodec *codec_);
+    ~Impl();
 
     void initialize();
     void cleanup();
@@ -53,7 +53,7 @@ struct VideoDecoder_Impl: public DecoderBase::Impl {
 
 // PUBLIC METHODS ---------------------------------------------------
 
-VideoDecoder::VideoDecoder(Impl *pimpl): Decoder<VideoDecoder, VideoDecoder_Impl>(pimpl) {}
+VideoDecoder::VideoDecoder(Impl *pimpl): DecoderBase(static_cast<DecoderBase::Impl*>(pimpl)) {}
 
 VideoDecoder::~VideoDecoder() = default;
 
@@ -72,7 +72,7 @@ auto VideoDecoder::createFromStream(void *stream_) -> VideoDecoder *
 
     // Create an implementation
     // TODO: may need the stream as well
-    auto impl = new VideoDecoder_Impl(dec_ctx, dec);
+    auto impl = new VideoDecoder::Impl(dec_ctx, dec);
 
     // Finally, create and return the VideoDecoder instance
     return new VideoDecoder(impl);
@@ -91,6 +91,11 @@ void VideoDecoder::cleanup()
 bool VideoDecoder::decode_packet(void * packet)
 {
     return p()->decode_packet(static_cast<AVPacket*>(packet));
+}
+
+auto VideoDecoder::p() -> Impl*
+{
+    return static_cast<Impl*>(_p); 
 }
 
 /*
@@ -112,24 +117,24 @@ void VideoDecoder::recycle_frame(Frame &&frame)
 
 // PIMPL IMPLEMENTATION ---------------------------------------------
 
-VideoDecoder_Impl::VideoDecoder_Impl(AVCodecContext *ctx_, AVCodec *codec_):
+VideoDecoder::Impl::Impl(AVCodecContext *ctx_, AVCodec *codec_):
     context(ctx_), codec(codec_) 
 {
 }
 
-VideoDecoder_Impl::~VideoDecoder_Impl()
+VideoDecoder::Impl::~Impl()
 { 
     cleanup(); 
 }
 
-void VideoDecoder_Impl::initialize()
+void VideoDecoder::Impl::initialize()
 {
     for (auto i = 0U; i < MAX_BUFFERED_FRAMES; i++) queued_frames.push_back(_av(av_frame_alloc));
 
     got_frame = 0;
 }
 
-void VideoDecoder_Impl::cleanup()
+void VideoDecoder::Impl::cleanup()
 {
     if (context) {
         _av(avcodec_close, context);
@@ -137,7 +142,7 @@ void VideoDecoder_Impl::cleanup()
     }
 }
 
-bool VideoDecoder_Impl::decode_packet(AVPacket * packet)
+bool VideoDecoder::Impl::decode_packet(AVPacket * packet)
 {
     _av(avcodec_decode_video2, context, queued_frames.front(), &got_frame, packet);
 
@@ -155,14 +160,14 @@ bool VideoDecoder_Impl::decode_packet(AVPacket * packet)
 }
 
 /*
-bool VideoDecoder_Impl::frame_available()
+bool VideoDecoder::Impl::frame_available()
 {
     lock_guard<mutex> lk(frames_mutex);
 
     return ! ready_frames.empty();
 }
 
-auto VideoDecoder_Impl::get_nextframe() -> Frame
+auto VideoDecoder::Impl::get_nextframe() -> Frame
 {
     lock_guard<mutex> lk(frames_mutex);
 
@@ -172,7 +177,7 @@ auto VideoDecoder_Impl::get_nextframe() -> Frame
     return Frame(frame);
 }
 
-void VideoDecoder_Impl::recycle_frame(Frame &&frame)
+void VideoDecoder::Impl::recycle_frame(Frame &&frame)
 {
     lock_guard<mutex> lk(frames_mutex);
 
