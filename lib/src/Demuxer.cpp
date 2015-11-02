@@ -24,15 +24,15 @@ using namespace std;
 
 // PIMPL DECLARATION ------------------------------------------------
 
-struct Demuxer::Private {
+struct Demuxer::Impl {
 
     AVFormatContext                *format_context;
     std::unique_ptr<VideoDecoder>   video_decoder;
     std::thread                     reader_thread;
     bool                            terminate;
 
-    Private();
-    ~Private();
+    Impl();
+    ~Impl();
 
     void open(const std::string &url);
     auto get_video_decoder() -> VideoDecoder&;
@@ -42,7 +42,7 @@ struct Demuxer::Private {
 
 // LIFECYCLE --------------------------------------------------------
 
-Demuxer::Demuxer(): p(new Private())
+Demuxer::Demuxer(): p(new Impl())
 {
     std::cerr << "Demuxer ctor called" << std::endl;
 }
@@ -88,22 +88,22 @@ static struct ModInit {
 
 // PRIVATE IMPLEMENTATION (PIMPL) ----------------------------------
 
-Demuxer::Private::Private():
+Demuxer::Impl::Impl():
     format_context(nullptr),
     terminate(false),
-    reader_thread(std::bind(&Private::reader_loop, this))
+    reader_thread(std::bind(&Impl::reader_loop, this))
 {
 }
 
-Demuxer::Private::~Private()
+Demuxer::Impl::~Impl()
 {
-	std::cout << "Demuxer::Private dtor called" << std::endl;
+	std::cout << "Demuxer::Impl dtor called" << std::endl;
 
     terminate = true;
     reader_thread.join();
 }
 
-void Demuxer::Private::open(const std::string &url)
+void Demuxer::Impl::open(const std::string &url)
 {
     assert(!format_context);
 
@@ -113,7 +113,7 @@ void Demuxer::Private::open(const std::string &url)
 // TODO: what if there is no video stream ? 
 //  -> perhaps it's better to return a pointer
 
-auto Demuxer::Private::get_video_decoder() -> VideoDecoder&
+auto Demuxer::Impl::get_video_decoder() -> VideoDecoder&
 {
     if (!video_decoder)
     {
@@ -128,7 +128,7 @@ auto Demuxer::Private::get_video_decoder() -> VideoDecoder&
     return *video_decoder;
 }
 
-void Demuxer::Private::reader_loop()
+void Demuxer::Impl::reader_loop()
 {
     auto &vid_dec = get_video_decoder();
 
@@ -149,3 +149,4 @@ void Demuxer::Private::reader_loop()
 }
 
 GPC_AV_NAMESPACE_END
+

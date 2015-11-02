@@ -24,9 +24,9 @@ public:
     auto video_decoder() -> VideoDecoder&;
 
 private:
-    struct Private;
+    struct Impl;
     
-    std::unique_ptr<Private> p;
+    std::unique_ptr<Impl> p;
 };
 
 GPC_AV_NAMESPACE_END

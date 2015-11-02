@@ -95,7 +95,7 @@ bool VideoDecoder::decode_packet(void * packet)
 
 auto VideoDecoder::p() -> Impl*
 {
-    return static_cast<Impl*>(_p); 
+    return static_cast<Impl*>(_p.get()); 
 }
 
 /*

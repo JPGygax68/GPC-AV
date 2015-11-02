@@ -5,6 +5,15 @@ It just occurred to me that there is no sense in passing AVFrame ownership aroun
 
 This means that frame objects can be put back into the "free" queue as soon as they have been presented to all the consumers.
 
+---------
+
+Upgrading the Pimpl idiom was, in the end, rather straightforward, though it does make things a little more complicated:
+
+- The Impl structure of the base class (DecoderBase) has to be defined in a separate header file so that classes inheriting from it (the envelope) can define Implementations that inherit from the base class' Impl.
+- Derived classes must provide a way to static_cast the Impl pointer to the type of their own, derived Impl. In this case, I renamed  the pointer - in the base class - to _p and defined an accessor method p() in the derived Envelope class (VideoDecoder) that does that casting.
+  - This introduces a not-so-nice inconsistency between classes that have inheriting Impl's, needing to write p()->..., and those that do not, which can simply use p->...
+    -> This could be fixed by simply defining that all Envelopes shall use p()
+
 2015-11-01
 ==========
 

@@ -10,14 +10,19 @@ using namespace std;
 
 // PUBLIC INTERFACE -------------------------------------------------
 
+DecoderBase::DecoderBase() :
+    _p(new Impl())
+{
+}
+
 DecoderBase::DecoderBase(DecoderBase&& from)
 {
-    _p = std::move(from._p);
+    _p.swap(from._p);
 }
 
 DecoderBase & DecoderBase::operator = (DecoderBase&& from)
 {
-    _p = std::move(from._p);
+    _p.swap(from._p);
 
     return *this;
 }
@@ -30,6 +35,13 @@ auto DecoderBase::add_consumer(Consumer consumer) -> int
 void DecoderBase::remove_consumer(int token)
 {
     _p->remove_consumer(token);
+}
+
+// FRIEND INTERFACES ------------------------------------------------
+
+DecoderBase::DecoderBase(Impl *p_) : 
+    _p(p_) 
+{
 }
 
 // IMPLEMENTATION (PIMPL) -------------------------------------------

@@ -13,6 +13,7 @@ class DecoderBase {
 public:
     typedef std::function<void(const Frame&)> Consumer;
 
+    DecoderBase();
     DecoderBase(DecoderBase&&);
     DecoderBase& operator = (DecoderBase&&);
 
@@ -22,9 +23,9 @@ public:
 protected:
     struct Impl;
 
-    explicit DecoderBase(Impl *p_) : _p(p_) {}
+    explicit DecoderBase(Impl *p_);
 
-    Impl *_p;
+    std::unique_ptr<Impl> _p;
 };
 
 GPC_AV_NAMESPACE_END
