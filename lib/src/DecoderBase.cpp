@@ -1,7 +1,8 @@
-#include <map>
+#include <utility>
 
 #include <gpc/_av/internal/DecoderBase.hpp>
-#include <gpc/_av/internal/DecoderBaseImpl.hpp>
+#include <gpc/_av/internal/DecoderBase_Impl.hpp>
+
 
 GPC_AV_NAMESPACE_START
 
@@ -30,5 +31,20 @@ void DecoderBase::remove_consumer(int token)
 {
     _p->remove_consumer(token);
 }
+
+// IMPLEMENTATION (PIMPL) -------------------------------------------
+
+auto DecoderBase::Impl::add_consumer(Consumer &consumer) -> int
+{
+    int token = consumers.next_token++;
+    consumers.map.insert({ token, consumer });
+    return token;
+}
+
+void DecoderBase::Impl::remove_consumer(int token)
+{
+    consumers.map.erase(token);
+}
+
 
 GPC_AV_NAMESPACE_END

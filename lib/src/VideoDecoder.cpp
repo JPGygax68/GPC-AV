@@ -13,7 +13,7 @@ extern "C" {
 #include <gpc/_av/Frame.hpp>
 
 #include <gpc/_av/VideoDecoder.hpp>
-#include <gpc/_av/internal/DecoderBaseImpl.hpp>
+#include <gpc/_av/internal/DecoderBase_Impl.hpp>
 #include "checked_calls.hpp"
 
 GPC_AV_NAMESPACE_START
