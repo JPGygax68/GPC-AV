@@ -41,8 +41,9 @@ Frame & Frame::operator = (Frame &&from)
     return *this;
 }
 
-Frame::Frame(void *frame_): 
-    frame(static_cast<AVFrame*>(frame_))
+Frame::Frame(AVFrame *frame_): 
+    //frame(static_cast<AVFrame*>(frame_))
+    frame(frame_)
 {
 }
 
@@ -53,8 +54,9 @@ void Frame::reset()
 
 Frame::~Frame()
 {
-    av_frame_free(&frame);
-    assert(!frame);
+    //av_frame_free(&frame);
+    av_frame_unref(frame);
+    //assert(!frame);
 }
 
 GPC_AV_NAMESPACE_END

@@ -37,6 +37,11 @@ void DecoderBase::remove_consumer(int token)
     _p->remove_consumer(token);
 }
 
+void DecoderBase::deliver_frame(const Frame &frame)
+{
+    _p->deliver_frame(frame);
+}
+
 // FRIEND INTERFACES ------------------------------------------------
 
 DecoderBase::DecoderBase(Impl *p_) : 
@@ -56,6 +61,14 @@ auto DecoderBase::Impl::add_consumer(Consumer &consumer) -> int
 void DecoderBase::Impl::remove_consumer(int token)
 {
     consumers.map.erase(token);
+}
+
+void DecoderBase::Impl::deliver_frame(const Frame &frame)
+{
+    for (auto &entry : consumers.map) 
+    {
+        entry.second(frame);
+    }
 }
 
 

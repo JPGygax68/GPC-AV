@@ -29,7 +29,7 @@ public:
 private:
     friend class VideoDecoder;
 
-    explicit Frame(void *av_frame);
+    explicit Frame(AVFrame *av_frame);
 
     AVFrame *frame;
 };

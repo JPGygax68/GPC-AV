@@ -32,9 +32,8 @@ struct VideoDecoder::Impl: public DecoderBase::Impl {
 
     AVCodecContext         *context;
     AVCodec                *codec;
-    deque<AVFrame*>         queued_frames;      // Frames available for filling (front is being filled now or next)
-    deque<AVFrame*>         ready_frames;       // Frames ready for consumption
-    mutex                   frames_mutex;       // Lock this to modify either of the above deques
+    bool                    init_done;
+    AVFrame                *frame;
     int                     got_frame;
 
     Impl(AVCodecContext *ctx_, AVCodec *codec_);
@@ -98,61 +97,61 @@ auto VideoDecoder::p() -> Impl*
     return static_cast<Impl*>(_p.get()); 
 }
 
-/*
-bool VideoDecoder::frame_available()
-{
-    return p->frame_available();
-}
-
-auto VideoDecoder::get_next_frame() -> Frame
-{
-    return p->get_nextframe();
-}
-
-void VideoDecoder::recycle_frame(Frame &&frame)
-{
-    p->recycle_frame(std::move(frame));
-}
-*/
-
 // PIMPL IMPLEMENTATION ---------------------------------------------
 
 VideoDecoder::Impl::Impl(AVCodecContext *ctx_, AVCodec *codec_):
-    context(ctx_), codec(codec_) 
+    context(ctx_), codec(codec_), init_done(false)
 {
 }
 
 VideoDecoder::Impl::~Impl()
 { 
     cleanup(); 
-}
 
-void VideoDecoder::Impl::initialize()
-{
-    for (auto i = 0U; i < MAX_BUFFERED_FRAMES; i++) queued_frames.push_back(_av(av_frame_alloc));
-
-    got_frame = 0;
-}
-
-void VideoDecoder::Impl::cleanup()
-{
     if (context) {
         _av(avcodec_close, context);
         context = nullptr;
     }
 }
 
+void VideoDecoder::Impl::initialize()
+{
+    if (!init_done)
+    {
+        //for (auto i = 0U; i < MAX_BUFFERED_FRAMES; i++) queued_frames.push_back(_av(av_frame_alloc));
+        frame = _av(av_frame_alloc);
+        got_frame = 0;
+
+        init_done = true;
+    }
+}
+
+void VideoDecoder::Impl::cleanup()
+{
+    if (init_done)
+    {
+        //for (auto i = 0U; i < MAX_BUFFERED_FRAMES; i++) av_frame_free(&queued_frames[i]);
+        //queued_frames.clear();
+        av_frame_free(&frame);
+        init_done = false;
+    }
+}
+
 bool VideoDecoder::Impl::decode_packet(AVPacket * packet)
 {
-    _av(avcodec_decode_video2, context, queued_frames.front(), &got_frame, packet);
+    assert(init_done);
+
+    _av(avcodec_decode_video2, context, frame, &got_frame, packet);
 
     if (got_frame)
     {
         // Move frame from "queued" to "ready" queues
-        lock_guard<mutex> lk(frames_mutex);
-        ready_frames.push_back(queued_frames.front());
-        queued_frames.pop_front();
-        // TODO: send signal to "subscribed" consumers?
+        //lock_guard<mutex> lk(frames_mutex);
+        //ready_frames.push_back(queued_frames.front());
+        //queued_frames.pop_front();
+
+        deliver_frame(Frame(frame));
+
         got_frame = 0;
         return true;
     }

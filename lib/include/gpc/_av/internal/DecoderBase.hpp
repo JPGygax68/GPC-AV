@@ -20,6 +20,8 @@ public:
     auto add_consumer(Consumer) -> int;
     void remove_consumer(int);
 
+    void deliver_frame(const Frame&);
+
 protected:
     struct Impl;
 

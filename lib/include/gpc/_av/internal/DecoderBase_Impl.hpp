@@ -20,6 +20,8 @@ struct DecoderBase::Impl {
 
     auto add_consumer(Consumer &) -> int;
     void remove_consumer(int);
+
+    void deliver_frame(const Frame &);
 };
 
 GPC_AV_NAMESPACE_END

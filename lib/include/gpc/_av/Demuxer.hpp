@@ -21,6 +21,9 @@ public:
 
     void open(const std::string &url);
 
+    void start();
+    void stop();
+
     auto video_decoder() -> VideoDecoder&;
 
 private:

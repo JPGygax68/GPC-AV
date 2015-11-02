@@ -26,15 +26,21 @@ using namespace std;
 
 struct Demuxer::Impl {
 
+    static const size_t INBUF_SIZE = 4096;
+
     AVFormatContext                *format_context;
     std::unique_ptr<VideoDecoder>   video_decoder;
-    std::thread                     reader_thread;
+    std::unique_ptr<std::thread>    reader_thread;
+    bool                            reader_aborted;
+    string                          reader_error;
     bool                            terminate;
 
     Impl();
     ~Impl();
 
     void open(const std::string &url);
+    void start();
+    void stop();
     auto get_video_decoder() -> VideoDecoder&;
 
     void reader_loop();
@@ -73,6 +79,16 @@ auto Demuxer::create(const std::string &url) -> Demuxer*
 	return demux;
 }
 
+void Demuxer::start()
+{
+    p->start();
+}
+
+void Demuxer::stop()
+{
+    p->stop();
+}
+
 auto Demuxer::video_decoder() -> VideoDecoder&
 {
     return p->get_video_decoder();
@@ -90,8 +106,7 @@ static struct ModInit {
 
 Demuxer::Impl::Impl():
     format_context(nullptr),
-    terminate(false),
-    reader_thread(std::bind(&Impl::reader_loop, this))
+    terminate(false)
 {
 }
 
@@ -100,7 +115,7 @@ Demuxer::Impl::~Impl()
 	std::cout << "Demuxer::Impl dtor called" << std::endl;
 
     terminate = true;
-    reader_thread.join();
+    if (reader_thread) reader_thread->join();
 }
 
 void Demuxer::Impl::open(const std::string &url)
@@ -108,6 +123,19 @@ void Demuxer::Impl::open(const std::string &url)
     assert(!format_context);
 
     _av(avformat_open_input, &format_context, url.c_str(), nullptr, nullptr); // TODO: support options in last parameter
+
+}
+
+void Demuxer::Impl::start()
+{
+    reader_thread.reset(new std::thread(std::bind(&Impl::reader_loop, this)));
+}
+
+void Demuxer::Impl::stop()
+{
+    terminate = true;
+    reader_thread->join();
+    reader_thread.reset();
 }
 
 // TODO: what if there is no video stream ? 
@@ -130,22 +158,31 @@ auto Demuxer::Impl::get_video_decoder() -> VideoDecoder&
 
 void Demuxer::Impl::reader_loop()
 {
-    auto &vid_dec = get_video_decoder();
+    try {
 
-    // TODO: delay reading until condition variable is set
+        auto &vid_dec = get_video_decoder();
+        vid_dec.initialize();
 
-	while (!terminate)
-	{
+        //uint8_t buffer[INBUF_SIZE + FF_INPUT_BUFFER_PADDING_SIZE];
+        //memset(buffer + INBUF_SIZE, 0, FF_INPUT_BUFFER_PADDING_SIZE);
 
+        AVPacket packet;
+        av_init_packet(&packet);
 
-        // Repeat until queue is full
         while (!terminate)
         {
-            auto queue_size = [this]() {
-                return 0;
-            }();
+            _av(av_read_frame, format_context, &packet);
+
+            vid_dec.decode_packet(&packet);
         }
-	}
+
+        vid_dec.cleanup();
+    }
+    catch (const exception &e) {
+        reader_aborted = true;
+        cerr << "Demuxer error while reading: " << e.what() << endl;
+        reader_error = e.what();
+    }
 }
 
 GPC_AV_NAMESPACE_END
