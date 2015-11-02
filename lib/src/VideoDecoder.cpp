@@ -1,16 +1,19 @@
 #include <cassert>
 #include <deque>
+#include <map>
 #include <thread>
 #include <mutex>
 #include <condition_variable>
 
 extern "C" {
 #include "libavformat/avformat.h"
+#include "libavcodec/avcodec.h"
 }
 
 #include <gpc/_av/Frame.hpp>
 
 #include <gpc/_av/VideoDecoder.hpp>
+#include <gpc/_av/internal/DecoderBaseImpl.hpp>
 #include "checked_calls.hpp"
 
 GPC_AV_NAMESPACE_START
@@ -25,7 +28,7 @@ static const size_t MAX_BUFFERED_FRAMES = 10;
 
 // PIMPL DECLARATION ------------------------------------------------
 
-struct VideoDecoder::Impl {
+struct VideoDecoder_Impl: public DecoderBase::Impl {
 
     AVCodecContext         *context;
     AVCodec                *codec;
@@ -34,37 +37,25 @@ struct VideoDecoder::Impl {
     mutex                   frames_mutex;       // Lock this to modify either of the above deques
     int                     got_frame;
 
-    Impl(AVCodecContext *ctx_, AVCodec *codec_);
-    ~Impl();
+    VideoDecoder_Impl(AVCodecContext *ctx_, AVCodec *codec_);
+    ~VideoDecoder_Impl();
 
     void initialize();
     void cleanup();
 
     bool decode_packet(AVPacket *packet);       // Returns true if a frame was obtained
-    bool frame_available();
-    auto get_nextframe() -> Frame;
-    void recycle_frame(Frame &&frame);
+    //bool frame_available();
+    //auto get_nextframe() -> Frame;
+    //void recycle_frame(Frame &&frame);
 
     friend class VideoDecoderImpl;
 };
 
 // PUBLIC METHODS ---------------------------------------------------
 
-VideoDecoder::VideoDecoder(Impl *pimpl): p(pimpl) {}
+VideoDecoder::VideoDecoder(Impl *pimpl): Decoder<VideoDecoder, VideoDecoder_Impl>(pimpl) {}
 
 VideoDecoder::~VideoDecoder() = default;
-
-VideoDecoder::VideoDecoder(VideoDecoder&& from)
-{
-    p.swap(from.p);
-}
-
-VideoDecoder & VideoDecoder::operator = (VideoDecoder&& from)
-{
-    p.swap(from.p);
-
-    return *this;
-}
 
 // FRIEND-CALLABLE METHODS ------------------------------------------
 
@@ -81,7 +72,7 @@ auto VideoDecoder::createFromStream(void *stream_) -> VideoDecoder *
 
     // Create an implementation
     // TODO: may need the stream as well
-    auto impl = new VideoDecoder::Impl(dec_ctx, dec);
+    auto impl = new VideoDecoder_Impl(dec_ctx, dec);
 
     // Finally, create and return the VideoDecoder instance
     return new VideoDecoder(impl);
@@ -89,19 +80,20 @@ auto VideoDecoder::createFromStream(void *stream_) -> VideoDecoder *
 
 void VideoDecoder::initialize()
 {
-    p->initialize();
+    p()->initialize();
 }
 
 void VideoDecoder::cleanup()
 {
-    p->cleanup();
+    p()->cleanup();
 }
 
 bool VideoDecoder::decode_packet(void * packet)
 {
-    return p->decode_packet(static_cast<AVPacket*>(packet));
+    return p()->decode_packet(static_cast<AVPacket*>(packet));
 }
 
+/*
 bool VideoDecoder::frame_available()
 {
     return p->frame_available();
@@ -116,27 +108,28 @@ void VideoDecoder::recycle_frame(Frame &&frame)
 {
     p->recycle_frame(std::move(frame));
 }
+*/
 
 // PIMPL IMPLEMENTATION ---------------------------------------------
 
-VideoDecoder::Impl::Impl(AVCodecContext *ctx_, AVCodec *codec_): 
+VideoDecoder_Impl::VideoDecoder_Impl(AVCodecContext *ctx_, AVCodec *codec_):
     context(ctx_), codec(codec_) 
 {
 }
 
-VideoDecoder::Impl::~Impl()
+VideoDecoder_Impl::~VideoDecoder_Impl()
 { 
     cleanup(); 
 }
 
-void VideoDecoder::Impl::initialize()
+void VideoDecoder_Impl::initialize()
 {
     for (auto i = 0U; i < MAX_BUFFERED_FRAMES; i++) queued_frames.push_back(_av(av_frame_alloc));
 
     got_frame = 0;
 }
 
-void VideoDecoder::Impl::cleanup()
+void VideoDecoder_Impl::cleanup()
 {
     if (context) {
         _av(avcodec_close, context);
@@ -144,7 +137,7 @@ void VideoDecoder::Impl::cleanup()
     }
 }
 
-bool VideoDecoder::Impl::decode_packet(AVPacket * packet)
+bool VideoDecoder_Impl::decode_packet(AVPacket * packet)
 {
     _av(avcodec_decode_video2, context, queued_frames.front(), &got_frame, packet);
 
@@ -161,14 +154,15 @@ bool VideoDecoder::Impl::decode_packet(AVPacket * packet)
     else return false;
 }
 
-bool VideoDecoder::Impl::frame_available()
+/*
+bool VideoDecoder_Impl::frame_available()
 {
     lock_guard<mutex> lk(frames_mutex);
 
     return ! ready_frames.empty();
 }
 
-auto VideoDecoder::Impl::get_nextframe() -> Frame
+auto VideoDecoder_Impl::get_nextframe() -> Frame
 {
     lock_guard<mutex> lk(frames_mutex);
 
@@ -178,11 +172,12 @@ auto VideoDecoder::Impl::get_nextframe() -> Frame
     return Frame(frame);
 }
 
-void VideoDecoder::Impl::recycle_frame(Frame &&frame)
+void VideoDecoder_Impl::recycle_frame(Frame &&frame)
 {
     lock_guard<mutex> lk(frames_mutex);
 
     queued_frames.push_back(frame.frame);
 }
+*/
 
 GPC_AV_NAMESPACE_END

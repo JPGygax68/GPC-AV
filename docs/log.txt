@@ -1,3 +1,10 @@
+2015-11-02
+==========
+
+It just occurred to me that there is no sense in passing AVFrame ownership around from the Decoder to the Consumer and back because I've now implemented copy functionality for the Frame wrapper class which creates clones of a Frame every time one is copied.
+
+This means that frame objects can be put back into the "free" queue as soon as they have been presented to all the consumers.
+
 2015-11-01
 ==========
 
@@ -46,7 +53,13 @@ Now to plan for the specific Presenter that is needed here: playing at nominal s
            - The correct way to handle this is to take the official stream framerate into account, and to register an anomaly only if the time elapsed since the last presentation exceeds one frame period (inverse of the framerate).
            - Another thing to do, when that keeps happening, is to introduce an artificial delay in the playback, giving the Demuxer some slack to compensate for difficulties
            
+----------
 
+Who drives who?
+
+At present, I'm looking at: demuxer --(owned)--> decoder --(callback)--> presenter
+
+The callback approach is pretty flexible, I just see it as a more advanced version of polymorphic invocation in a publish/subscribe pattern.
 
 
 2015-10-29

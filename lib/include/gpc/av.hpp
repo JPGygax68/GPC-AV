@@ -6,8 +6,8 @@
 #ifndef NO_DEMUXER
 #include "_av/Demuxer.hpp"
 #endif
-#ifndef NO_STREAM
-#include "_av/Decoder.hpp"
+#ifndef NO_VIDEO_DECODER
+#include "_av/VideoDecoder.hpp"
 #endif
 #include "_av/config.hpp"
 

@@ -20,6 +20,8 @@ extern "C" {
 
 GPC_AV_NAMESPACE_START
 
+using namespace std;
+
 // PIMPL DECLARATION ------------------------------------------------
 
 struct Demuxer::Private {
@@ -108,6 +110,9 @@ void Demuxer::Private::open(const std::string &url)
     _av(avformat_open_input, &format_context, url.c_str(), nullptr, nullptr); // TODO: support options in last parameter
 }
 
+// TODO: what if there is no video stream ? 
+//  -> perhaps it's better to return a pointer
+
 auto Demuxer::Private::get_video_decoder() -> VideoDecoder&
 {
     if (!video_decoder)
@@ -125,8 +130,14 @@ auto Demuxer::Private::get_video_decoder() -> VideoDecoder&
 
 void Demuxer::Private::reader_loop()
 {
+    auto &vid_dec = get_video_decoder();
+
+    // TODO: delay reading until condition variable is set
+
 	while (!terminate)
 	{
+
+
         // Repeat until queue is full
         while (!terminate)
         {

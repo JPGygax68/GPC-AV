@@ -7,7 +7,7 @@
 
 GPC_AV_NAMESPACE_START
 
-class Demuxer;
+template <typename Impl> class Decoder<Impl>;
 class Frame;
 
 class DefaultPresenter {
@@ -17,7 +17,11 @@ public:
 
     typedef void (*PresentCallback)(const Frame *);
 
-    DefaultPresenter(Demuxer&, PresentCallback);
+    DefaultPresenter(Decoder&, PresentCallback);
+
+    void play();
+    void pause();
+    void stop();
 
 private:
     struct Impl;
