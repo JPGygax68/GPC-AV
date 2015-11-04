@@ -79,6 +79,11 @@ auto Demuxer::create(const std::string &url) -> Demuxer*
 	return demux;
 }
 
+void Demuxer::open(const std::string & url)
+{
+    p->open(url);
+}
+
 void Demuxer::start()
 {
     p->start();

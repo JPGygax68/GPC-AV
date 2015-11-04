@@ -26,6 +26,8 @@ auto Player::create(const std::string& url) -> Player*
     return player;
 }
 
+Player::~Player() = default;
+
 void Player::open(const std::string & url)
 {
     p->open(url);
