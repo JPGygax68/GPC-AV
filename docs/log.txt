@@ -1,3 +1,31 @@
+2015-11-03
+==========
+
+I have for now removed queues from the Decoder/VideoDecoder class (can't remember which it was). There is a design question here that needs answering before going further: how to control the Demuxer so that it doesn't read and decode packets faster than the consumer can use them? 
+
+- Simply halting the demuxer thread would allow one consumer to prevent all others from being fed
+  -> this might actually be desirable behaviour
+  -> but it might also prevent the demuxer thread from receiving UDP packets [not sure whether FFmpeg has its own thread to receive and buffer incoming network packets]
+
+- A query might be defined on Frame Sink (Consumer) objects that informs the upstream (Decoder) whether or not the Consumer is ready to receive more frames
+  -> would imply that Frame Sinks can no longer be expressed via a single callback - is this unnecessary complexity?
+  -> a similar query is needed on Packet Sinks (Decoders) to inform the Demuxer
+  --> define a base class MediaSink, with a query method "ready()" ?
+  - The Demuxer would then suspend the delivering of packets to Decoders if any of the Decoders doesn't report "ready"
+  - The Demuxer will then go in a cycle of short sleep periods followed by retrials
+    -> The problem with that is that the shortest sleep period supported by the OS might be much too long
+  - OR the Demuxer could use a condition variable that holds the count of blocked Frame Sinks (Decoders), and wait on
+    the condition variable to go back to 0 before resuming
+    
+Taking a step back. The above discussion assumes that Frame Sinks are allowed to be independent from each other, in the sense that there is no controlling instance to which the coordinating of production/consumption can be delegated, and that therefore the Demuxer must handle this itself.
+
+This may not be a realistic or helpful assumption. In fact, letting such data chains churn away without a controlling instance, while an alluring thought, could lead to unnecessary restrictions, since safe operation would then likely require the enacting of strict rules.
+
+The best way forward may be to define hold() and resume() methods on the Demuxer class. This methods must not however be confused with the classic pause() / play() (pseudo)-pair, which will likely not be implemented on the Demuxer, but on a future Player class. That Player class might well use hold() and resume() internally though, but it may need to complement them with further calls.
+
+I think the best way forward right now is to implement a Player class, which will be immediately used in the test scene of the "Clock" screen sharing test program. Some or even most of that functionality may or may not be later extracted into a more generic base class, which could then also serve as the basis for a yet-to-be Trranscoder class.
+
+
 2015-11-02
 ==========
 

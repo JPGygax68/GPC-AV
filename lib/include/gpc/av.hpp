@@ -9,6 +9,9 @@
 #ifndef NO_VIDEO_DECODER
 #include "_av/VideoDecoder.hpp"
 #endif
+#ifndef NO_VIDEO_PLAYER
+#include "_av/Player.hpp"
+#endif
 #include "_av/config.hpp"
 
 GPC_AV_NAMESPACE_START
