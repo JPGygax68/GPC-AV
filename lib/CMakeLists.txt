@@ -8,7 +8,7 @@ set(SOURCE_FILES
   "src/DecoderBase.cpp" 
   "src/Error.cpp"
   "src/Frame.cpp"
-  #"src/Rational.cpp"
+  "src/Rational.cpp"
 )
 
 set(HEADER_FILES 
