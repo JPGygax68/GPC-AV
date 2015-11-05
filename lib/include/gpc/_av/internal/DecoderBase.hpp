@@ -14,7 +14,7 @@ class Frame;
 class DecoderBase {
 public:
 
-    typedef Rational<int64_t> duration_t;
+    typedef Rational duration_t;
 
     typedef std::function<void(const Frame&)> Consumer;
 

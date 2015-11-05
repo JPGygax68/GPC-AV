@@ -23,6 +23,7 @@ set(HEADER_FILES
   "include/gpc/_av/Error.hpp"
   "include/gpc/_av/Frame.hpp"
   "include/gpc/_av/Rational.hpp"
+  "include/gpc/Rational.hpp"  # TODO: move into its own library
   "src/checked_calls.hpp"
 )
 
