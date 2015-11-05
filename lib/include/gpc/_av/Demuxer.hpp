@@ -24,6 +24,9 @@ public:
     void start();
     void stop();
 
+    void suspend();
+    void resume();
+
     auto video_decoder() -> VideoDecoder&;
 
 private:

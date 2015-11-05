@@ -1,3 +1,78 @@
+2015-11-05
+==========
+
+I need to find a good way to work with time. Brainstorming.
+
+- Timestamps on frames are rational numbers and often cannot be represented with complete precision by any type, integer or floating point.
+
+- It would be great to be able to work with timestamps without knowing or caring how they're implemented.
+
+- In order not to accumulate inaccuracies, operations involving divisions should always handle the rest explicitly.
+
+- It would be nice if there was a way to make the conversions between different clock types automatic.
+
+- For the time being though, working with doubles and seconds should be good enough.
+
+----------------
+
+- TODO: look at av_frame_get_best_effort_timestamp(frame)
+
+
+2015-11-04
+==========
+
+TODO: it just occurred to me that executing the decoders from inside the mutex reader loop might waste the opportunity to have that work done in a separate thread. FFmpeg can't do that internally as the call is synchronous.
+
+- TODO: find out if avformat_open_input() waits for necessary metadata before returning
+
+----------
+
+The handling of time
+--------------------
+
+How to handle time when playing a multimedia stream ? Brainstorming.
+
+- Player presentation time starts elapsing when get_newest_video_frame() is called for the first time [or, in the future, any get_frame()] (1)
+
+- If synchronization demands that playback be delayed, that delay must NOT be included in the playback time (quite natural, but will likely require special handling) [FUTURE FEATURE]
+
+- Presentation timestamps of decoded frames will be used to determine when to replace the frame currently being displayed with the following one
+
+- The player should provide a convenience function to determine whether the front frame in the buffer is due for presentation
+  -> OR refuse to yield it until its presentation time has come ?
+  
+- (1) assumes that the time elapsing between dequeuing via get_newest_video_frame() and actual presentation is constant. This is not necessarily the case if, for example, get_newest_video_frame() is called at the end (or in the middle, for that matter) of the body of a rendering loop.
+  This leads to a danger of the Player refusing to yield a new frame if the consumer attempts to get it only slightly earlier in its display cycle than when it obtained the first frame. This would be especially bad if the media stream actually has the same frame rate as the display, as it would lead to totally unnecessary hiccups.
+  -> This could be solved by allowing the start of presentation time to "slip" forward a little - but by how much?
+  
+- Should the Player class try to determine the display framerate ?
+
+- Maybe it would be good to have an abstraction of what MS calls the "swap chain"
+
+- A special case that should also be provided for are free-sync monitors:
+  a) output frame rate could be locked to the media stream frame rate
+  b) rendering loop could provide an estimate of the time it will take for the frame to be presented; the player could then decide whether to stay on the current frame or move forward to the next one (if available)
+
+------------
+
+- Found when browsing: SDL2's vsync does not work when a window is minimized.
+
+Ok, now to continue with the brainstorming for the handling of time.
+
+- How to determine when to move on to the next frame ?
+  -> Simple answer: look at the frame's timestamp: if it's older than or equal to the time elapsed since playing started, discard the presently displaying frame and get the new one. This can be repeated if there is a chance that the time elapsed since the last presentation is longer than the frame period.
+  - The problem with the above is when v-sync is being used and the media framerate is close to or equal to the display framerate. It is then possible that frames are repeated and their predecessors repeated, because the time at which 
+
+-------
+
+Drew a diagram and came to the conclusion that vertical sync is probably the best way to get better control over sync problems.
+
+BUT it is probably not needed anyway:
+- When the rendering loop framerate is higher than the media framerate, with or without v-sync, what will happen is that somes frames will be repeated 1 time more often than others. This will not look too good, but there's not much to be done about it.
+- What would happen when both framerates are close to each other is more complicated; this would likely result in quite noticeable stutter.
+
+- For now, all that is really needed is a call that informs the player when the first frame has been presented (can later be extended to include vertical refresh rate, length of presentation chain, etc.). This will serve as a good basis to synchronize the sub-streams.
+
 2015-11-03
 ==========
 

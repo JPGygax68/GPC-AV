@@ -1,5 +1,7 @@
 #pragma once
 
+#include <chrono>
+
 #include "config.hpp"
 
 struct AVFrame;
@@ -16,6 +18,7 @@ GPC_AV_NAMESPACE_START
  */
 class Frame {
 public:
+    typedef std::chrono::time_point<std::chrono::microseconds> timepoint_t;
 
     Frame();
     Frame(Frame&&);
@@ -25,6 +28,8 @@ public:
     ~Frame();
 
     void reset();
+
+    auto presentation_time() -> int64_t; // in x/time_base (time_base defined in Stream)
 
 private:
     friend class VideoDecoder;

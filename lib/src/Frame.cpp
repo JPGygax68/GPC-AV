@@ -52,6 +52,11 @@ void Frame::reset()
     av_frame_unref(frame);
 }
 
+auto Frame::presentation_time() -> int64_t
+{
+    return frame->pts;
+}
+
 Frame::~Frame()
 {
     //av_frame_free(&frame);

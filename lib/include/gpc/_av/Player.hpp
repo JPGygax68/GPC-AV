@@ -14,19 +14,24 @@ class Frame;
 
 class Player {
 public:
-    typedef std::function<void(const Frame &)> FramePresenter;
 
     static auto create(const std::string &url) -> Player*;
 
     ~Player();
 
-    void set_frame_presenter(FramePresenter presenter);
-    // TODO: audio presenter, subtitles ?, etc.
-
     void open(const std::string &url);
 
     void play();
     void pause();
+
+    auto peek_newest_video_frame() -> const Frame *;
+
+    auto get_newest_video_frame() -> Frame;
+
+    // TODO: replace with approach not depending on video stream ?
+    bool video_frame_available();
+
+    auto current_frame() -> const Frame &;
 
 private:
     struct Impl;

@@ -26,14 +26,21 @@ using namespace std;
 
 struct Demuxer::Impl {
 
-    static const size_t INBUF_SIZE = 4096;
+    //static const size_t INBUF_SIZE = 4096;
+
+    enum ReaderCommand { NOP = 0, SUSPEND, RESUME, TERMINATE };
+    enum ReaderState { UNDEFINED = 0, WAITING_FOR_DATA, PROCESSING_DATA, SUSPENDED, TERMINATING };
 
     AVFormatContext                *format_context;
     std::unique_ptr<VideoDecoder>   video_decoder;
     std::unique_ptr<std::thread>    reader_thread;
+    //bool                            terminate;
+    ReaderCommand                   reader_command;
+    ReaderState                     reader_state;
+    mutex                           reader_mutex;
+    condition_variable              reader_condvar;
     bool                            reader_aborted;
     string                          reader_error;
-    bool                            terminate;
 
     Impl();
     ~Impl();
@@ -42,6 +49,8 @@ struct Demuxer::Impl {
     void start();
     void stop();
     auto get_video_decoder() -> VideoDecoder&;
+    void suspend();
+    void resume();
 
     void reader_loop();
 };
@@ -111,7 +120,7 @@ static struct ModInit {
 
 Demuxer::Impl::Impl():
     format_context(nullptr),
-    terminate(false)
+    reader_command(NOP)
 {
 }
 
@@ -119,7 +128,7 @@ Demuxer::Impl::~Impl()
 {
 	std::cout << "Demuxer::Impl dtor called" << std::endl;
 
-    terminate = true;
+    reader_command = TERMINATE;
     if (reader_thread) reader_thread->join();
 }
 
@@ -138,9 +147,19 @@ void Demuxer::Impl::start()
 
 void Demuxer::Impl::stop()
 {
-    terminate = true;
+    reader_command = TERMINATE;
     reader_thread->join();
     reader_thread.reset();
+}
+
+void Demuxer::suspend()
+{
+    p->suspend();
+}
+
+void Demuxer::resume()
+{
+    p->resume();
 }
 
 // TODO: what if there is no video stream ? 
@@ -161,6 +180,38 @@ auto Demuxer::Impl::get_video_decoder() -> VideoDecoder&
     return *video_decoder;
 }
 
+/*  TODO: this implementation may suspend the caller until the currently active
+        reading operation (in the reader thread) is done or times out. It may
+        be better to return immediately and put the player into a "command queued"
+        state in which it will refuse further commands.
+ */
+void Demuxer::Impl::suspend()
+{
+    unique_lock<mutex> lk(reader_mutex);
+
+    cout << "Demuxer: suspending..." << endl;
+
+    reader_command = SUSPEND;
+    reader_condvar.wait(lk, [this]() { return reader_state == SUSPENDED; });
+
+    cout << "Demuxer: now suspended." << endl;
+}
+
+void Demuxer::Impl::resume()
+{
+    assert(reader_state == SUSPENDED);
+
+    cout << "Demuxer: resuming..." << endl;
+
+    reader_command = RESUME;
+    reader_condvar.notify_one();
+
+    unique_lock<mutex> lk(reader_mutex);
+    reader_condvar.wait(lk, [this]() { return reader_state == WAITING_FOR_DATA; });
+
+    cout << "Demuxer: accepting data again." << endl;
+}
+
 void Demuxer::Impl::reader_loop()
 {
     try {
@@ -174,16 +225,31 @@ void Demuxer::Impl::reader_loop()
         AVPacket packet;
         av_init_packet(&packet);
 
-        while (!terminate)
+        while (reader_command != TERMINATE)
         {
-            _av(av_read_frame, format_context, &packet);
+            if (reader_command == SUSPEND)
+            {
+                reader_state = SUSPENDED; // TODO: define and use set_state() ?
+                reader_command = NOP;
+                unique_lock<mutex> lk(reader_mutex);
+                reader_condvar.wait(lk, [this]() { return reader_command == RESUME || reader_command == TERMINATE; });
+            }
+            else 
+            {
+                reader_state = WAITING_FOR_DATA; // TODO: define and use set_state() ?
+                _av(av_read_frame, format_context, &packet);
 
-            vid_dec.decode_packet(&packet);
+                reader_state = PROCESSING_DATA; // TODO: define and use set_state() ?
+                vid_dec.decode_packet(&packet); // TODO: replace with "queue_packet()"  (decoupled) ?
+            }
         }
 
+        reader_state = TERMINATING; // TODO: define and use set_state() ?
         vid_dec.cleanup();
+        reader_state = UNDEFINED; // TODO: define and use set_state() ?
     }
-    catch (const exception &e) {
+    catch (const exception &e) 
+    {
         reader_aborted = true;
         cerr << "Demuxer error while reading: " << e.what() << endl;
         reader_error = e.what();

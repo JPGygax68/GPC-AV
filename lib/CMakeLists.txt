@@ -21,6 +21,7 @@ set(HEADER_FILES
   "include/gpc/_av/VideoDecoder.hpp"
   "include/gpc/_av/Error.hpp"
   "include/gpc/_av/Frame.hpp"
+  "include/gpc/_av/Rational.hpp"
   "src/checked_calls.hpp"
 )
 
