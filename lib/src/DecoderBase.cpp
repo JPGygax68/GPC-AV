@@ -1,8 +1,13 @@
 #include <utility>
+#include <cassert>
+
+extern "C" {
+//#include "libavformat/avformat.h"
+#include "libavcodec/avcodec.h"
+}
 
 #include <gpc/_av/internal/DecoderBase.hpp>
 #include <gpc/_av/internal/DecoderBase_Impl.hpp>
-
 
 GPC_AV_NAMESPACE_START
 
@@ -25,6 +30,11 @@ DecoderBase & DecoderBase::operator = (DecoderBase&& from)
     _p.swap(from._p);
 
     return *this;
+}
+
+auto DecoderBase::time_base() const -> duration_t
+{
+    return _p->time_base();
 }
 
 auto DecoderBase::add_consumer(Consumer consumer) -> int
@@ -50,6 +60,19 @@ DecoderBase::DecoderBase(Impl *p_) :
 }
 
 // IMPLEMENTATION (PIMPL) -------------------------------------------
+
+DecoderBase::Impl::Impl() = default;
+
+DecoderBase::Impl::Impl(AVCodecContext *context_, AVCodec *codec_) :
+    context(context_), codec(codec_)
+{}
+
+auto DecoderBase::Impl::time_base() const -> duration_t
+{
+    assert(context);
+
+    return context->time_base;
+}
 
 auto DecoderBase::Impl::add_consumer(Consumer &consumer) -> int
 {

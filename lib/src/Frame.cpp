@@ -52,7 +52,7 @@ void Frame::reset()
     av_frame_unref(frame);
 }
 
-auto Frame::presentation_time() -> int64_t
+auto Frame::presentation_timestamp() -> int64_t
 {
     return frame->pts;
 }

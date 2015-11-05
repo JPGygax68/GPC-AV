@@ -166,7 +166,10 @@ auto Player::Impl::current_frame() -> const Frame &
         start_timepoint = clock.now();
     }
 
-    while (video_queue.size() > 1 && video_queue[1].presentation_time() < (clock.now() - start_timepoint))
+    auto pres_time = video_queue[1].presentation_timestamp() * demuxer.video_decoder().time_base();
+    auto curr_time = clock.now() - start_timepoint;
+
+    while (video_queue.size() > 1 && pres_time < curr_time)
     {
         video_queue.pop_front();
     }

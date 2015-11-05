@@ -30,8 +30,6 @@ static const size_t MAX_BUFFERED_FRAMES = 10;
 
 struct VideoDecoder::Impl: public DecoderBase::Impl {
 
-    AVCodecContext         *context;
-    AVCodec                *codec;
     bool                    init_done;
     AVFrame                *frame;
     int                     got_frame;
@@ -100,7 +98,7 @@ auto VideoDecoder::p() -> Impl*
 // PIMPL IMPLEMENTATION ---------------------------------------------
 
 VideoDecoder::Impl::Impl(AVCodecContext *ctx_, AVCodec *codec_):
-    context(ctx_), codec(codec_), init_done(false)
+    DecoderBase::Impl(ctx_, codec_), init_done(false)
 {
 }
 

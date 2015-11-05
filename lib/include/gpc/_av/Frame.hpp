@@ -29,7 +29,7 @@ public:
 
     void reset();
 
-    auto presentation_time() -> int64_t; // in x/time_base (time_base defined in Stream)
+    auto presentation_timestamp() -> int64_t; // in x/time_base (time_base defined in Stream)
 
 private:
     friend class VideoDecoder;
