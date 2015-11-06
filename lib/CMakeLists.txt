@@ -88,6 +88,11 @@ if (MSVC)
   set (CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} /SAFESEH:NO")
 endif()
 
+# OpenGL bindings
+find_package(glbinding REQUIRED)
+target_link_libraries(${PROJECT_NAME} PRIVATE ${GLBINDING_LIBRARIES})
+target_compile_definitions(${PROJECT_NAME} PRIVATE GLBINDING_STATIC)
+
 # EXPORT && INSTALLATION --------------------------------------------
 
 export(TARGETS "libGPC-AVpp"  FILE "${PROJECT_NAME}-targets.cmake")

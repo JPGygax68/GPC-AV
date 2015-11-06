@@ -3,16 +3,19 @@
 #include <memory>
 #include <string>
 
-#ifndef NO_DEMUXER
+#ifndef DONT_USE_GPC_AV_DEMUXER
 #include "_av/Demuxer.hpp"
 #endif
-#ifndef NO_VIDEO_DECODER
+#ifndef DONT_USE_GPC_AV_VIDEO_DECODER
 #include "_av/VideoDecoder.hpp"
 #endif
-#ifndef NO_VIDEO_PLAYER
+#ifndef DONT_USE_GPC_AV__VIDEO_PLAYER
 #include "_av/Player.hpp"
 #endif
 #include "_av/config.hpp"
+#ifdef USE_GPC_AV_OPENGL
+#include "_av/opengl/YUVPainter.hpp"
+#endif
 
 GPC_AV_NAMESPACE_START
     

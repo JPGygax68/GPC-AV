@@ -15,8 +15,10 @@ class Frame;
 class Player {
 public:
 
+    // TODO: factory method may be obsolete
     static auto create(const std::string &url) -> Player*;
 
+    Player();
     ~Player();
 
     void open(const std::string &url);
@@ -36,8 +38,6 @@ public:
 private:
     struct Impl;
     std::unique_ptr<Impl> p;
-
-    Player() = default;
 };
 
 GPC_AV_NAMESPACE_END

@@ -60,22 +60,15 @@ auto Player::create(const std::string& url) -> Player*
     return player;
 }
 
+Player::Player() : p(new Impl()) {}
+
 Player::~Player() = default;
 
-void Player::open(const std::string & url)
-{
-    p->open(url);
-}
+void Player::open(const std::string & url) { p->open(url); }
 
-void Player::play()
-{
-    p->play();
-}
+void Player::play() { p->play(); }
 
-void Player::pause()
-{
-    p->pause();
-}
+void Player::pause() { p->pause(); }
 
 auto Player::peek_newest_video_frame() -> const Frame *
 {
