@@ -9,6 +9,7 @@ set(SOURCE_FILES
   "src/Error.cpp"
   "src/Frame.cpp"
   "src/Rational.cpp"
+  "src/opengl/YUVPainter.cpp"
 )
 
 set(HEADER_FILES 
@@ -23,18 +24,47 @@ set(HEADER_FILES
   "include/gpc/_av/Error.hpp"
   "include/gpc/_av/Frame.hpp"
   "include/gpc/_av/Rational.hpp"
+  "include/gpc/_av/opengl/YUVPainter.hpp"
   "include/gpc/Rational.hpp"  # TODO: move into its own library
   "src/checked_calls.hpp"
 )
 
 add_library("libGPC-AVpp" STATIC ${SOURCE_FILES} ${HEADER_FILES})
 
-target_include_directories("${PROJECT_NAME}" BEFORE
+target_include_directories("libGPC-AVpp" BEFORE
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     #$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/generated>
     #$<INSTALL_INTERFACE:include> # TODO
 )
+
+# SHADER FILES ------------------------------------------------------
+
+set(SHADER_FILES "src/opengl/vertex.glsl" "src/opengl/fragment.glsl")
+
+source_group("Shader files" FILES ${SHADER_FILES})
+
+# TODO: make this into a CMake module
+
+set(GENERATED "${CMAKE_CURRENT_BINARY_DIR}/generated")
+target_include_directories("${PROJECT_NAME}" PUBLIC ${GENERATED})
+
+# Find the GPC Bin2C utility
+find_package(GPCBin2C REQUIRED)
+
+# Add a custom target and a dependency for each shader file
+
+foreach(shader ${SHADER_FILES})
+  get_filename_component(name "${shader}" NAME)
+  set(shader_header "${GENERATED}/${name}.h")
+  add_custom_command(
+    OUTPUT ${shader_header}
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${shader}
+    COMMAND GPCBin2C --input=${CMAKE_CURRENT_SOURCE_DIR}/${shader} --output=${shader_header}
+  )
+  target_sources("libGPC-AVpp" PRIVATE ${SHADER_FILES} )
+  target_sources("libGPC-AVpp" PRIVATE ${shader_header})
+endforeach()
 
 # DEPENDENCIES -------------------------------------------------------
 

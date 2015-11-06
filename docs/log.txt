@@ -1,3 +1,25 @@
+2015-11-06
+==========
+
+The next step is now to actually display frames. Brainstorming.
+
+- Start out with display only luma
+- Use a shader from the very start
+- There may be multiple shaders [depends on whether or not FFmpeg video decoders have normalized output]
+- Those shaders belong into a GPC-AV module [might be extracted into their own module(s) in the future]
+  - gpc/_av/opengl/shaders.hpp:
+    - vanilla_vertex_shader
+    - yuv_fragment_shader
+- The "vanilla" vertex shader does nothing else than the usual transforms, both for vertices and texture coordinates
+- The fragment shader uses 3 texture samplers
+- More information is needed on the exact format delivered by video decoders
+- Is it possible to compile a shader program with only the fragment shader ?
+  -> NO (Stack Overflow answer)  
+- In what form should the OpenGL YUV displaying functionality be provided?
+  -> A class with:
+    - appropriate hooks for lifecycle management (OpenGL contexts)
+    - 3 queries for each of the 3 textures (Y,U,V)
+
 2015-11-05
 ==========
 
