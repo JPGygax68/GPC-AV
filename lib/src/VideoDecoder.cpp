@@ -10,10 +10,11 @@ extern "C" {
 #include "libavcodec/avcodec.h"
 }
 
-#include <gpc/_av/Frame.hpp>
+#include <gpc/_av/VideoFrame.hpp>
 
 #include <gpc/_av/VideoDecoder.hpp>
-#include <gpc/_av/internal/DecoderBase_Impl.hpp>
+#include <gpc/_av/internal/Decoder.ipp>
+#include <gpc/_av/internal/Decoder_Impl.hpp>
 #include "checked_calls.hpp"
 
 GPC_AV_NAMESPACE_START
@@ -24,33 +25,34 @@ using namespace std;
 
 static const size_t MAX_BUFFERED_FRAMES = 10;
 
-// PRIVATE CLASSES --------------------------------------------------
-
 // PIMPL DECLARATION ------------------------------------------------
 
-struct VideoDecoder::Impl: public DecoderBase::Impl {
+struct VideoDecoder_Impl: public Decoder_Impl<VideoDecoder> {
 
     bool                    init_done;
     AVFrame                *frame;
     int                     got_frame;
 
-    Impl(AVCodecContext *ctx_, AVCodec *codec_);
-    ~Impl();
+    VideoDecoder_Impl(AVCodecContext *ctx_, AVCodec *codec_);
+    ~VideoDecoder_Impl();
 
     void initialize();
     void cleanup();
 
     bool decode_packet(AVPacket *packet);       // Returns true if a frame was obtained
-    //bool frame_available();
-    //auto get_nextframe() -> Frame;
-    //void recycle_frame(Frame &&frame);
 
     friend class VideoDecoderImpl;
 };
 
+// Now we can (explicitly) instantiate base class template
+template class Decoder<VideoDecoder, VideoFrame, VideoDecoder_Impl>;
+
 // PUBLIC METHODS ---------------------------------------------------
 
-VideoDecoder::VideoDecoder(Impl *pimpl): DecoderBase(static_cast<DecoderBase::Impl*>(pimpl)) {}
+VideoDecoder::VideoDecoder(VideoDecoder_Impl *pimpl): 
+    Decoder(pimpl)
+{
+}
 
 VideoDecoder::~VideoDecoder() = default;
 
@@ -69,7 +71,7 @@ auto VideoDecoder::createFromStream(void *stream_) -> VideoDecoder *
 
     // Create an implementation
     // TODO: may need the stream as well
-    auto impl = new VideoDecoder::Impl(dec_ctx, dec);
+    auto impl = new VideoDecoder_Impl(dec_ctx, dec);
 
     // Finally, create and return the VideoDecoder instance
     return new VideoDecoder(impl);
@@ -90,19 +92,14 @@ bool VideoDecoder::decode_packet(void * packet)
     return p()->decode_packet(static_cast<AVPacket*>(packet));
 }
 
-auto VideoDecoder::p() -> Impl*
-{
-    return static_cast<Impl*>(_p.get()); 
-}
-
 // PIMPL IMPLEMENTATION ---------------------------------------------
 
-VideoDecoder::Impl::Impl(AVCodecContext *ctx_, AVCodec *codec_):
-    DecoderBase::Impl(ctx_, codec_), init_done(false)
+VideoDecoder_Impl::VideoDecoder_Impl(AVCodecContext *ctx_, AVCodec *codec_):
+    Decoder_Impl(ctx_, codec_), init_done(false)
 {
 }
 
-VideoDecoder::Impl::~Impl()
+VideoDecoder_Impl::~VideoDecoder_Impl()
 { 
     cleanup(); 
 
@@ -112,7 +109,7 @@ VideoDecoder::Impl::~Impl()
     }
 }
 
-void VideoDecoder::Impl::initialize()
+void VideoDecoder_Impl::initialize()
 {
     if (!init_done)
     {
@@ -124,7 +121,7 @@ void VideoDecoder::Impl::initialize()
     }
 }
 
-void VideoDecoder::Impl::cleanup()
+void VideoDecoder_Impl::cleanup()
 {
     if (init_done)
     {
@@ -135,7 +132,7 @@ void VideoDecoder::Impl::cleanup()
     }
 }
 
-bool VideoDecoder::Impl::decode_packet(AVPacket * packet)
+bool VideoDecoder_Impl::decode_packet(AVPacket * packet)
 {
     assert(init_done);
 
@@ -148,38 +145,12 @@ bool VideoDecoder::Impl::decode_packet(AVPacket * packet)
         //ready_frames.push_back(queued_frames.front());
         //queued_frames.pop_front();
 
-        deliver_frame(Frame(frame));
+        deliver_frame(VideoFrame(frame));
 
         got_frame = 0;
         return true;
     }
     else return false;
 }
-
-/*
-bool VideoDecoder::Impl::frame_available()
-{
-    lock_guard<mutex> lk(frames_mutex);
-
-    return ! ready_frames.empty();
-}
-
-auto VideoDecoder::Impl::get_nextframe() -> Frame
-{
-    lock_guard<mutex> lk(frames_mutex);
-
-    auto frame = ready_frames.front();
-    ready_frames.pop_front();
-
-    return Frame(frame);
-}
-
-void VideoDecoder::Impl::recycle_frame(Frame &&frame)
-{
-    lock_guard<mutex> lk(frames_mutex);
-
-    queued_frames.push_back(frame.frame);
-}
-*/
 
 GPC_AV_NAMESPACE_END

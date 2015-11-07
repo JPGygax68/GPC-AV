@@ -7,7 +7,7 @@
 
 #include <gpc/_av/Demuxer.hpp>
 #include <gpc/_av/VideoDecoder.hpp>
-#include <gpc/_av/Frame.hpp>
+#include <gpc/_av/VideoFrame.hpp>
 
 #include <gpc/_av/Player.hpp>
 
@@ -32,21 +32,21 @@ struct Player::Impl {
     void play();
     void pause();
 
-    void process_video_frame(const Frame &);
+    void process_video_frame(const VideoFrame &);
 
-    auto peek_newest_video_frame() -> const Frame *;
-    auto get_newest_video_frame() -> Frame;
-    auto current_frame() -> const Frame &;
+    auto peek_newest_video_frame() -> const VideoFrame *;
+    auto get_newest_video_frame() -> VideoFrame;
+    auto current_video_frame() -> const VideoFrame *;
 
     void suspend_demuxing();
     void try_resume_demuxing();
 
-    Demuxer         demuxer;
-    deque<Frame>    video_queue;
-    mutex           queues_mutex;
-    clock_t         clock;
-    timepoint_t     start_timepoint;
-    size_t          stall_count;
+    Demuxer             demuxer;
+    deque<VideoFrame>   video_queue;
+    mutex               queues_mutex;
+    clock_t             clock;
+    timepoint_t         starting_timepoint;
+    size_t              stall_count;
 };
 
 // PUBLIC METHODS ---------------------------------------------------
@@ -70,12 +70,12 @@ void Player::play() { p->play(); }
 
 void Player::pause() { p->pause(); }
 
-auto Player::peek_newest_video_frame() -> const Frame *
+auto Player::peek_newest_video_frame() -> const VideoFrame *
 {
     return p->peek_newest_video_frame();
 }
 
-auto Player::get_newest_video_frame() -> Frame
+auto Player::get_newest_video_frame() -> VideoFrame
 {
     return p->get_newest_video_frame();
 }
@@ -85,9 +85,9 @@ bool Player::video_frame_available()
     return !p->video_queue.empty();
 }
 
-auto Player::current_frame() -> const Frame &
+auto Player::current_video_frame() -> const VideoFrame *
 {
-    return p->current_frame();
+    return p->current_video_frame();
 }
 
 // PRIVATE / PROTECTED METHODS --------------------------------------
@@ -124,7 +124,7 @@ void Player::Impl::pause()
 
 // TODO: replace this method with a generic one that works with any type of frame ?
 
-void Player::Impl::process_video_frame(const Frame &frame)
+void Player::Impl::process_video_frame(const VideoFrame &frame)
 {
     lock_guard<mutex> lk(queues_mutex);
 
@@ -133,12 +133,12 @@ void Player::Impl::process_video_frame(const Frame &frame)
     if (video_queue.size() >= MAX_VIDEO_QUEUE_SIZE) suspend_demuxing();
 }
 
-auto Player::Impl::peek_newest_video_frame() -> const Frame *
+auto Player::Impl::peek_newest_video_frame() -> const VideoFrame *
 {
     return !video_queue.empty() ? &video_queue.front() : nullptr;
 }
 
-auto Player::Impl::get_newest_video_frame() -> Frame
+auto Player::Impl::get_newest_video_frame() -> VideoFrame
 {
     lock_guard<mutex> lk(queues_mutex);
 
@@ -152,22 +152,30 @@ auto Player::Impl::get_newest_video_frame() -> Frame
     return frame;
 }
 
-auto Player::Impl::current_frame() -> const Frame &
+auto Player::Impl::current_video_frame() -> const VideoFrame *
 {
-    if (start_timepoint == timepoint_t())
+    if (video_queue.empty())
     {
-        start_timepoint = clock.now();
+        return nullptr;
     }
-
-    auto pres_time = video_queue[1].presentation_timestamp() * demuxer.video_decoder().time_base();
-    auto curr_time = clock.now() - start_timepoint;
-
-    while (video_queue.size() > 1 && pres_time < curr_time)
+    else 
     {
-        video_queue.pop_front();
-    }
+        if (starting_timepoint == timepoint_t())
+        {
+            starting_timepoint = clock.now();
+        }
 
-    return video_queue.front();
+        auto presentation_time = video_queue[1].presentation_timestamp() * demuxer.video_decoder().time_base();
+
+        auto curr_time = clock.now() - starting_timepoint;
+
+        while (video_queue.size() > 1 && presentation_time < curr_time)
+        {
+            video_queue.pop_front();
+        }
+
+        return &video_queue.front();
+    }
 }
 
 void Player::Impl::suspend_demuxing()

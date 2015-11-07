@@ -4,13 +4,14 @@
 #include <functional>
 #include <memory>
 
-#include "internal/DecoderBase.hpp" // TODO: move definition of Consumer into public, separate header ?
+#include "internal/Decoder.hpp" // TODO: move definition of Consumer into public, separate header ?
 
 #include "config.hpp"
 
 GPC_AV_NAMESPACE_START
 
-class Frame;
+class VideoFrame;
+class AudioFrame;
 
 class Player {
 public:
@@ -26,14 +27,14 @@ public:
     void play();
     void pause();
 
-    auto peek_newest_video_frame() -> const Frame *;
+    auto peek_newest_video_frame() -> const VideoFrame *;
 
-    auto get_newest_video_frame() -> Frame;
+    auto get_newest_video_frame() -> VideoFrame;
 
     // TODO: replace with approach not depending on video stream ?
     bool video_frame_available();
 
-    auto current_frame() -> const Frame &;
+    auto current_video_frame() -> const VideoFrame *;
 
 private:
     struct Impl;

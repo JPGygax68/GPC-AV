@@ -8,6 +8,7 @@ set(SOURCE_FILES
   "src/DecoderBase.cpp" 
   "src/Error.cpp"
   "src/Frame.cpp"
+  "src/VideoFrame.cpp"
   "src/Rational.cpp"
   "src/opengl/YUVPainter.cpp"
 )
@@ -18,11 +19,13 @@ set(HEADER_FILES
   "include/gpc/_av/config.hpp"
   "include/gpc/_av/Player.hpp"
   "include/gpc/_av/Demuxer.hpp"
-  "include/gpc/_av/internal/DecoderBase.hpp"
-  "include/gpc/_av/internal/DecoderBase_Impl.hpp"
+  "include/gpc/_av/internal/Decoder.hpp"
+  "include/gpc/_av/internal/Decoder_Impl.hpp"
+  "include/gpc/_av/internal/Decoder.ipp"
   "include/gpc/_av/VideoDecoder.hpp"
   "include/gpc/_av/Error.hpp"
   "include/gpc/_av/Frame.hpp"
+  "include/gpc/_av/VideoFrame.hpp"
   "include/gpc/_av/Rational.hpp"
   "include/gpc/_av/opengl/YUVPainter.hpp"
   "include/gpc/Rational.hpp"  # TODO: move into its own library

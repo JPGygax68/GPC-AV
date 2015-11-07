@@ -2,29 +2,28 @@
 
 #include <memory>
 #include "config.hpp"
-#include "internal/DecoderBase.hpp"
+#include "internal/Decoder.hpp"
 
 GPC_AV_NAMESPACE_START
 
-class Frame;
+class VideoFrame;
+struct VideoDecoder_Impl;
 
-class VideoDecoder : public DecoderBase {
+class VideoDecoder : public Decoder<VideoDecoder, VideoFrame, VideoDecoder_Impl> {
 public:
+
     ~VideoDecoder();
     VideoDecoder(VideoDecoder&&);
     VideoDecoder& operator = (VideoDecoder&&);
 
 private:
-    struct Impl;
 
-    VideoDecoder(Impl*);
+    VideoDecoder(VideoDecoder_Impl*);
 
 private: // Interface with Demuxer class
     
     friend class Demuxer;
     static auto createFromStream(void *stream) -> VideoDecoder*;
-
-    auto p() -> Impl*;
 
     void initialize();
     void cleanup();

@@ -10,7 +10,7 @@ struct AVRational;
 
 GPC_AV_NAMESPACE_START
 
-class Rational: public gpc::Rational<int64_t> {
+class Rational: public ::gpc::Rational<int64_t> {
 public:
     typedef gpc::Rational<int64_t> Ancestor;
 

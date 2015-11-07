@@ -8,14 +8,20 @@
 #endif
 #ifndef DONT_USE_GPC_AV_VIDEO_DECODER
 #include "_av/VideoDecoder.hpp"
+#include "_av/VideoFrame.hpp"
 #endif
-#ifndef DONT_USE_GPC_AV__VIDEO_PLAYER
+#ifndef DONT_USE_GPC_AV_VIDEO_PLAYER
 #include "_av/Player.hpp"
 #endif
-#include "_av/config.hpp"
+#ifndef DONT_USE_GPC_AV_FRAME
+// TODO: separate classes for video and audio, which get included automatically as required ?
+#include "_av/Frame.hpp"
+#endif
 #ifdef USE_GPC_AV_OPENGL
 #include "_av/opengl/YUVPainter.hpp"
 #endif
+
+#include "_av/config.hpp"
 
 GPC_AV_NAMESPACE_START
     

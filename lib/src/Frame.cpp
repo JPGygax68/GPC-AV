@@ -10,54 +10,46 @@ extern "C" {
 
 GPC_AV_NAMESPACE_START
 
-Frame::Frame()
+// TODO: check if actually reference counted: https://ffmpeg.org/doxygen/2.7/structAVFrame.html#details
+
+FrameBase::FrameBase()
 {
     frame = _av(av_frame_alloc);
 }
 
-Frame::Frame(Frame&& from)
+FrameBase::FrameBase(FrameBase&& from)
 {
     frame = from.frame;
     from.frame = nullptr;
 }
 
-Frame::Frame(const Frame& from)
+FrameBase::FrameBase(const FrameBase& from)
 {
     frame = _av(av_frame_clone, from.frame);
 }
 
-Frame & Frame::operator = (const Frame &from)
+void FrameBase::assign(const FrameBase &from)
 {
     frame = _av(av_frame_clone, from.frame);
-
-    return *this;
 }
 
-Frame & Frame::operator = (Frame &&from)
+void FrameBase::assign(FrameBase &&from)
 {
     frame = from.frame;
     from.frame = nullptr;
-
-    return *this;
 }
 
-Frame::Frame(AVFrame *frame_): 
-    //frame(static_cast<AVFrame*>(frame_))
+FrameBase::FrameBase(AVFrame *frame_): 
     frame(frame_)
 {
 }
 
-void Frame::reset()
-{
-    av_frame_unref(frame);
-}
-
-auto Frame::presentation_timestamp() -> int64_t
+auto FrameBase::presentation_timestamp() -> int64_t
 {
     return frame->pts;
 }
 
-Frame::~Frame()
+FrameBase::~FrameBase()
 {
     //av_frame_free(&frame);
     av_frame_unref(frame);
