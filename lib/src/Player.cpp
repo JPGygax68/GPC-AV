@@ -19,6 +19,8 @@ using namespace std;
 
 struct Player::Impl {
 
+    enum State { UNDEFINED = 0, PLAYING, PAUSED };
+
     typedef chrono::high_resolution_clock   clock_t;
     typedef clock_t::duration               duration_t;
     typedef clock_t::time_point             timepoint_t;
@@ -45,6 +47,7 @@ struct Player::Impl {
     deque<VideoFrame>   video_queue;
     mutex               queues_mutex;
     clock_t             clock;
+    State               state;
     timepoint_t         starting_timepoint;
     size_t              stall_count;
 };
@@ -94,7 +97,8 @@ auto Player::current_video_frame() -> const VideoFrame *
 
 // IMPLEMENTATION (PIMPL) -------------------------------------------
 
-Player::Impl::Impl()
+Player::Impl::Impl():
+    state(UNDEFINED)
 {
 }
 
@@ -108,18 +112,23 @@ void Player::Impl::open(const std::string & url)
 
     // TODO: move this into a yet-to-be-defined Demuxer callback because streams may not be 
     // known right after opening, if data comes via a network
-
+    // TODO: check if a video stream exists (video_decoder() will throw otherwise)
     demuxer.video_decoder().add_consumer(bind(&Impl::process_video_frame, this, _1));
 }
 
 void Player::Impl::play()
 {
-    // TODO
+    demuxer.start();
+    state = PLAYING;
 }
 
 void Player::Impl::pause()
 {
-    // TODO
+    if (state == PLAYING)
+    {
+        demuxer.suspend();
+        state = PAUSED;
+    }
 }
 
 // TODO: replace this method with a generic one that works with any type of frame ?
@@ -165,7 +174,7 @@ auto Player::Impl::current_video_frame() -> const VideoFrame *
             starting_timepoint = clock.now();
         }
 
-        auto presentation_time = video_queue[1].presentation_timestamp() * demuxer.video_decoder().time_base();
+        auto presentation_time = video_queue[0].presentation_timestamp() * demuxer.video_decoder().time_base();
 
         auto curr_time = clock.now() - starting_timepoint;
 

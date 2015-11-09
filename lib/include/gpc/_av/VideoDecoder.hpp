@@ -6,29 +6,32 @@
 
 GPC_AV_NAMESPACE_START
 
+class VideoStream;
 class VideoFrame;
-struct VideoDecoder_Impl;
 
-class VideoDecoder : public Decoder<VideoDecoder, VideoFrame, VideoDecoder_Impl> {
+class VideoDecoder : public Decoder<VideoDecoder, VideoFrame> {
 public:
+    struct Impl; // must be public so it can be accessed by template base class
 
     ~VideoDecoder();
     VideoDecoder(VideoDecoder&&);
     VideoDecoder& operator = (VideoDecoder&&);
 
-private:
-
-    VideoDecoder(VideoDecoder_Impl*);
+protected:
 
 private: // Interface with Demuxer class
     
     friend class Demuxer;
-    static auto createFromStream(void *stream) -> VideoDecoder*;
+    static auto create_from_stream(const VideoStream &stream) -> VideoDecoder*;
+
+    VideoDecoder(Impl*);
 
     void initialize();
     void cleanup();
 
     bool decode_packet(void *packet); // returns true if a new frame was made available
+
+    auto p() -> Impl *;
 };
 
 GPC_AV_NAMESPACE_END

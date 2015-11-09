@@ -15,7 +15,7 @@ using namespace std;
 
 // PUBLIC INTERFACE -------------------------------------------------
 
-DecoderBase::DecoderBase(DecoderBase_Impl *impl) :
+DecoderBase::DecoderBase(DecoderBase::Impl *impl) :
     _p(impl)
 {
 }
@@ -41,13 +41,13 @@ auto DecoderBase::time_base() const -> duration_t
 
 // IMPLEMENTATION (PIMPL) -------------------------------------------
 
-DecoderBase_Impl::DecoderBase_Impl() = default;
+DecoderBase::Impl::Impl() = default;
 
-DecoderBase_Impl::DecoderBase_Impl(AVCodecContext *context_, AVCodec *codec_) :
+DecoderBase::Impl::Impl(AVCodecContext *context_, AVCodec *codec_) :
     context(context_), codec(codec_)
 {}
 
-auto DecoderBase_Impl::time_base() const -> duration_t
+auto DecoderBase::Impl::time_base() const -> duration_t
 {
     assert(context);
 

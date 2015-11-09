@@ -10,6 +10,7 @@ extern "C" {
 #include "libavcodec/avcodec.h"
 }
 
+#include <gpc/_av/VideoStream.hpp>
 #include <gpc/_av/VideoFrame.hpp>
 
 #include <gpc/_av/VideoDecoder.hpp>
@@ -27,14 +28,14 @@ static const size_t MAX_BUFFERED_FRAMES = 10;
 
 // PIMPL DECLARATION ------------------------------------------------
 
-struct VideoDecoder_Impl: public Decoder_Impl<VideoDecoder> {
+struct VideoDecoder::Impl: public Decoder<VideoDecoder, VideoFrame>::Impl {
 
     bool                    init_done;
     AVFrame                *frame;
     int                     got_frame;
 
-    VideoDecoder_Impl(AVCodecContext *ctx_, AVCodec *codec_);
-    ~VideoDecoder_Impl();
+    Impl(AVCodecContext *ctx_, AVCodec *codec_);
+    ~Impl();
 
     void initialize();
     void cleanup();
@@ -45,11 +46,11 @@ struct VideoDecoder_Impl: public Decoder_Impl<VideoDecoder> {
 };
 
 // Now we can (explicitly) instantiate base class template
-template class Decoder<VideoDecoder, VideoFrame, VideoDecoder_Impl>;
+template class Decoder<VideoDecoder, VideoFrame>;
 
 // PUBLIC METHODS ---------------------------------------------------
 
-VideoDecoder::VideoDecoder(VideoDecoder_Impl *pimpl): 
+VideoDecoder::VideoDecoder(Impl *pimpl): 
     Decoder(pimpl)
 {
 }
@@ -58,10 +59,9 @@ VideoDecoder::~VideoDecoder() = default;
 
 // FRIEND-CALLABLE METHODS ------------------------------------------
 
-auto VideoDecoder::createFromStream(void *stream_) -> VideoDecoder *
+auto VideoDecoder::create_from_stream(const VideoStream &stream) -> VideoDecoder *
 {
-    auto stream = static_cast<AVStream*>(stream_);
-    auto dec_ctx = stream->codec;
+    auto dec_ctx = stream.stream->codec;
 
     // Find the decoder for the stream
     auto dec = _av(avcodec_find_decoder, dec_ctx->codec_id);
@@ -71,7 +71,7 @@ auto VideoDecoder::createFromStream(void *stream_) -> VideoDecoder *
 
     // Create an implementation
     // TODO: may need the stream as well
-    auto impl = new VideoDecoder_Impl(dec_ctx, dec);
+    auto impl = new Impl(dec_ctx, dec);
 
     // Finally, create and return the VideoDecoder instance
     return new VideoDecoder(impl);
@@ -92,14 +92,19 @@ bool VideoDecoder::decode_packet(void * packet)
     return p()->decode_packet(static_cast<AVPacket*>(packet));
 }
 
+auto VideoDecoder::p() -> Impl *
+{
+    return static_cast<Impl*>(_p.get());
+}
+
 // PIMPL IMPLEMENTATION ---------------------------------------------
 
-VideoDecoder_Impl::VideoDecoder_Impl(AVCodecContext *ctx_, AVCodec *codec_):
-    Decoder_Impl(ctx_, codec_), init_done(false)
+VideoDecoder::Impl::Impl(AVCodecContext *ctx_, AVCodec *codec_):
+    Decoder<VideoDecoder, VideoFrame>::Impl(ctx_, codec_), init_done(false)
 {
 }
 
-VideoDecoder_Impl::~VideoDecoder_Impl()
+VideoDecoder::Impl::~Impl()
 { 
     cleanup(); 
 
@@ -109,7 +114,7 @@ VideoDecoder_Impl::~VideoDecoder_Impl()
     }
 }
 
-void VideoDecoder_Impl::initialize()
+void VideoDecoder::Impl::initialize()
 {
     if (!init_done)
     {
@@ -121,7 +126,7 @@ void VideoDecoder_Impl::initialize()
     }
 }
 
-void VideoDecoder_Impl::cleanup()
+void VideoDecoder::Impl::cleanup()
 {
     if (init_done)
     {
@@ -132,7 +137,7 @@ void VideoDecoder_Impl::cleanup()
     }
 }
 
-bool VideoDecoder_Impl::decode_packet(AVPacket * packet)
+bool VideoDecoder::Impl::decode_packet(AVPacket * packet)
 {
     assert(init_done);
 

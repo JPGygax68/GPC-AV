@@ -10,7 +10,7 @@
 GPC_AV_NAMESPACE_START
 
 class FrameBase;
-struct DecoderBase_Impl;
+//struct DecoderBase_Impl;
 
 class DecoderBase {
 public:
@@ -20,15 +20,16 @@ public:
     auto time_base() const -> duration_t;
 
 protected:
+    struct Impl;
 
     DecoderBase(DecoderBase&&);
     DecoderBase& operator = (DecoderBase&&);
-    explicit DecoderBase(DecoderBase_Impl *p_);
+    explicit DecoderBase(Impl *p_);
 
-    std::unique_ptr<DecoderBase_Impl> _p;
+    std::unique_ptr<Impl> _p;
 };
 
-template <class Class, class FrameClass, typename Impl>
+template <class Class, class FrameClass>
 class Decoder : public DecoderBase {
 public:
 
@@ -43,13 +44,12 @@ public:
     void remove_consumer(int token);
 
 protected:
+    struct Impl;
 
     Decoder(Impl *impl) : DecoderBase(impl) {}
+    Decoder(DecoderBase::Impl *);
 
-    auto p() -> Impl *
-    {
-        return static_cast<Impl*>(_p.get());
-    }
+    //auto p() -> Impl * { return static_cast<Impl*>(_p.get()); }
 };
 
 GPC_AV_NAMESPACE_END

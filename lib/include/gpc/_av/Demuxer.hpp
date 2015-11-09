@@ -8,6 +8,7 @@
 GPC_AV_NAMESPACE_START
 
 class VideoDecoder;
+class VideoStream;
 
 class Demuxer {
 public:
@@ -28,6 +29,7 @@ public:
     void resume();
 
     auto video_decoder() -> VideoDecoder&;
+    auto find_best_video_stream() -> VideoStream;
 
 private:
     struct Impl;

@@ -12,22 +12,22 @@ struct AVCodec;
 
 GPC_AV_NAMESPACE_START
 
-struct DecoderBase_Impl {
+struct DecoderBase::Impl {
 
     typedef DecoderBase::duration_t duration_t;
 
     AVCodecContext         *context;
     AVCodec                *codec;
 
-    DecoderBase_Impl();
-    DecoderBase_Impl(AVCodecContext *, AVCodec *);
-    virtual ~DecoderBase_Impl() {}
+    Impl();
+    Impl(AVCodecContext *, AVCodec *);
+    virtual ~Impl() {}
 
     auto time_base() const -> duration_t;
 };
 
-template <class Class>
-struct Decoder_Impl: public DecoderBase_Impl {
+template <class Class, class FrameClass>
+struct Decoder<Class, FrameClass>::Impl: public DecoderBase::Impl {
 
     typedef typename Class::Consumer Consumer;
     typedef typename Class::FrameClass FrameClass;
@@ -39,7 +39,7 @@ struct Decoder_Impl: public DecoderBase_Impl {
 
     ConsumerList    consumers;
 
-    using DecoderBase_Impl::DecoderBase_Impl;
+    using DecoderBase::Impl::Impl;
 
     auto add_consumer(Consumer consumer) -> int
     {

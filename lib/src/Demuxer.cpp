@@ -15,6 +15,7 @@ extern "C" {
 
 #include <gpc/_av/config.hpp>
 #include <gpc/_av/VideoDecoder.hpp>
+#include <gpc/_av/VideoStream.hpp>
 
 #include <gpc/_av/Demuxer.hpp>
 
@@ -49,6 +50,7 @@ struct Demuxer::Impl {
     void start();
     void stop();
     auto get_video_decoder() -> VideoDecoder&;
+    auto find_best_video_stream() -> VideoStream;
     void suspend();
     void resume();
 
@@ -88,7 +90,7 @@ auto Demuxer::create(const std::string &url) -> Demuxer*
 	return demux;
 }
 
-void Demuxer::open(const std::string & url)
+void Demuxer::open(const std::string &url)
 {
     p->open(url);
 }
@@ -115,6 +117,21 @@ static struct ModInit {
         av_register_all();
     }
 } mod_init;
+
+void Demuxer::suspend()
+{
+    p->suspend();
+}
+
+void Demuxer::resume()
+{
+    p->resume();
+}
+
+auto Demuxer::find_best_video_stream() -> VideoStream
+{
+    return p->find_best_video_stream();
+}
 
 // PRIVATE IMPLEMENTATION (PIMPL) ----------------------------------
 
@@ -152,16 +169,6 @@ void Demuxer::Impl::stop()
     reader_thread.reset();
 }
 
-void Demuxer::suspend()
-{
-    p->suspend();
-}
-
-void Demuxer::resume()
-{
-    p->resume();
-}
-
 // TODO: what if there is no video stream ? 
 //  -> perhaps it's better to return a pointer
 
@@ -169,15 +176,22 @@ auto Demuxer::Impl::get_video_decoder() -> VideoDecoder&
 {
     if (!video_decoder)
     {
-        int st_idx = av_find_best_stream(format_context, AVMEDIA_TYPE_VIDEO, -1, -1, nullptr, 0);
-        if (st_idx < 0) throw Error(st_idx, "Could not find video stream in source");
+        VideoStream stream = find_best_video_stream();
 
-        auto stream = format_context->streams[st_idx];
-
-        video_decoder.reset(VideoDecoder::createFromStream(stream));
+        video_decoder.reset(VideoDecoder::create_from_stream(stream));
     }
 
     return *video_decoder;
+}
+
+auto Demuxer::Impl::find_best_video_stream() -> VideoStream
+{
+    int st_idx = av_find_best_stream(format_context, AVMEDIA_TYPE_VIDEO, -1, -1, nullptr, 0);
+    if (st_idx < 0) throw Error(st_idx, "Could not find video stream in source");
+
+    auto stream = format_context->streams[st_idx];
+
+    return VideoStream(stream);
 }
 
 /*  TODO: this implementation may suspend the caller until the currently active
@@ -241,6 +255,7 @@ void Demuxer::Impl::reader_loop()
 
                 reader_state = PROCESSING_DATA; // TODO: define and use set_state() ?
                 vid_dec.decode_packet(&packet); // TODO: replace with "queue_packet()"  (decoupled) ?
+                                                // TODO: call impl directly (get FFmpeg structs out of interfaces) ?
             }
         }
 
