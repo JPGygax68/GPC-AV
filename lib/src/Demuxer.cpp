@@ -30,16 +30,18 @@ struct Demuxer::Impl {
     //static const size_t INBUF_SIZE = 4096;
 
     enum ReaderCommand { NOP = 0, SUSPEND, RESUME, TERMINATE };
-    enum ReaderState { UNDEFINED = 0, WAITING_FOR_DATA, PROCESSING_DATA, SUSPENDED, TERMINATING };
+    enum ReaderState { UNDEFINED = 0, WAITING_FOR_DATA, PROCESSING_DATA, DELIVERING_DATA, SUSPENDED, TERMINATED };
 
     AVFormatContext                *format_context;
+    AVStream                       *video_stream;
     std::unique_ptr<VideoDecoder>   video_decoder;
     std::unique_ptr<std::thread>    reader_thread;
-    //bool                            terminate;
+    mutex                           reader_mutex;
+    condition_variable              command_posted;     // reader thread waits for this after suspending
+    condition_variable              command_executed;   // main thread waits for this after setting a command
     ReaderCommand                   reader_command;
     ReaderState                     reader_state;
-    mutex                           reader_mutex;
-    condition_variable              reader_condvar;
+
     bool                            reader_aborted;
     string                          reader_error;
 
@@ -49,13 +51,22 @@ struct Demuxer::Impl {
     void open(const std::string &url);
     void start();
     void stop();
-    auto get_video_decoder() -> VideoDecoder&;
-    auto find_best_video_stream() -> VideoStream;
+    auto make_video_decoder(AVStream *) -> VideoDecoder *;
+    auto find_best_video_stream() -> AVStream*;
+    auto is_suspended() -> bool;
     void suspend();
     void resume();
 
     void reader_loop();
 };
+
+// MODULE INITIALIZER ----------------------------------------------
+
+static struct ModInit {
+    ModInit() {
+        av_register_all();
+    }
+} mod_init;
 
 // LIFECYCLE --------------------------------------------------------
 
@@ -76,24 +87,33 @@ Demuxer::Demuxer(Demuxer&& from)
 
 Demuxer& Demuxer::operator = (Demuxer&& from)
 {
-	p.swap(from.p);
+    p.swap(from.p);
 
-	return *this;
+    return *this;
 }
 
 auto Demuxer::create(const std::string &url) -> Demuxer*
 {
-	Demuxer *demux = new Demuxer();
+    Demuxer *demux = new Demuxer();
 
     demux->p->open(url);
 
-	return demux;
+    return demux;
 }
+
+// PUBLIC METHODS ----------------------------------------------
 
 void Demuxer::open(const std::string &url)
 {
     p->open(url);
 }
+
+/*
+auto Demuxer::find_best_video_stream() -> VideoStream
+{
+    return VideoStream(p->find_best_video_stream());
+}
+*/
 
 void Demuxer::start()
 {
@@ -105,18 +125,27 @@ void Demuxer::stop()
     p->stop();
 }
 
-auto Demuxer::video_decoder() -> VideoDecoder&
+auto Demuxer::video_stream() -> VideoStream
 {
-    return p->get_video_decoder();
+    assert(p->video_stream);
+
+    return VideoStream(p->video_stream);
 }
 
-// MODULE INITIALIZER ----------------------------------------------
-
-static struct ModInit {
-    ModInit() {
-        av_register_all();
+auto Demuxer::video_decoder() -> VideoDecoder&
+{
+    if (!p->video_decoder)
+    {
+        (void) p->make_video_decoder(p->find_best_video_stream());
     }
-} mod_init;
+
+    return * p->video_decoder.get();
+}
+
+auto Demuxer::is_suspended() -> bool
+{
+    return p->is_suspended();
+}
 
 void Demuxer::suspend()
 {
@@ -128,15 +157,11 @@ void Demuxer::resume()
     p->resume();
 }
 
-auto Demuxer::find_best_video_stream() -> VideoStream
-{
-    return p->find_best_video_stream();
-}
-
 // PRIVATE IMPLEMENTATION (PIMPL) ----------------------------------
 
 Demuxer::Impl::Impl():
     format_context(nullptr),
+    video_stream(nullptr),
     reader_command(NOP)
 {
 }
@@ -145,8 +170,7 @@ Demuxer::Impl::~Impl()
 {
 	std::cout << "Demuxer::Impl dtor called" << std::endl;
 
-    reader_command = TERMINATE;
-    if (reader_thread) reader_thread->join();
+    stop();
 }
 
 void Demuxer::Impl::open(const std::string &url)
@@ -164,34 +188,41 @@ void Demuxer::Impl::start()
 
 void Demuxer::Impl::stop()
 {
-    reader_command = TERMINATE;
-    reader_thread->join();
-    reader_thread.reset();
-}
-
-// TODO: what if there is no video stream ? 
-//  -> perhaps it's better to return a pointer
-
-auto Demuxer::Impl::get_video_decoder() -> VideoDecoder&
-{
-    if (!video_decoder)
+    if (reader_state != TERMINATED)
     {
-        VideoStream stream = find_best_video_stream();
-
-        video_decoder.reset(VideoDecoder::create_from_stream(stream));
+        unique_lock<mutex> lk(reader_mutex);
+        reader_command = TERMINATE;
+        command_posted.notify_one();
+        lk.unlock();
+        reader_thread->join();
+        reader_thread.reset();
     }
-
-    return *video_decoder;
 }
 
-auto Demuxer::Impl::find_best_video_stream() -> VideoStream
+auto Demuxer::Impl::find_best_video_stream() -> AVStream*
 {
     int st_idx = av_find_best_stream(format_context, AVMEDIA_TYPE_VIDEO, -1, -1, nullptr, 0);
     if (st_idx < 0) throw Error(st_idx, "Could not find video stream in source");
 
-    auto stream = format_context->streams[st_idx];
+    return format_context->streams[st_idx];
+}
 
-    return VideoStream(stream);
+auto Demuxer::Impl::make_video_decoder(AVStream *stream) -> VideoDecoder *
+{
+    assert(!video_stream);
+    assert(!video_decoder);
+
+    video_stream = stream;
+    video_decoder.reset(VideoDecoder::create_from_stream(VideoStream(stream)));
+
+    return video_decoder.get(); // for convenience only
+}
+
+auto Demuxer::Impl::is_suspended() -> bool
+{
+    // No need to lock the access, as the reader thread cannot exit suspended state on its own
+
+    return reader_state == SUSPENDED;
 }
 
 /*  TODO: this implementation may suspend the caller until the currently active
@@ -201,37 +232,40 @@ auto Demuxer::Impl::find_best_video_stream() -> VideoStream
  */
 void Demuxer::Impl::suspend()
 {
-    unique_lock<mutex> lk(reader_mutex);
-
     cout << "Demuxer: suspending..." << endl;
 
+    unique_lock<mutex> lk(reader_mutex);
     reader_command = SUSPEND;
-    reader_condvar.wait(lk, [this]() { return reader_state == SUSPENDED; });
+    command_posted.notify_one();
+    command_executed.wait(lk, [this]() { return reader_state == SUSPENDED || reader_state == TERMINATED; });
 
-    cout << "Demuxer: now suspended." << endl;
+    cout << "Demuxer: now suspended (or terminating)." << endl;
 }
 
 void Demuxer::Impl::resume()
 {
-    assert(reader_state == SUSPENDED);
+    // TODO: support multiple streams with multiple consumers, i.e. only resume when number of
+    // calls to resume() matches number of congested consumers
 
     cout << "Demuxer: resuming..." << endl;
 
-    reader_command = RESUME;
-    reader_condvar.notify_one();
-
     unique_lock<mutex> lk(reader_mutex);
-    reader_condvar.wait(lk, [this]() { return reader_state == WAITING_FOR_DATA; });
 
-    cout << "Demuxer: accepting data again." << endl;
+    assert(reader_state == SUSPENDED);
+
+    reader_command = RESUME;
+    command_posted.notify_one();
+    command_executed.wait(lk, [this]() { return reader_state != SUSPENDED; });
+
+    cout << "Demuxer: resumed." << endl;
 }
 
 void Demuxer::Impl::reader_loop()
 {
     try {
-
-        auto &vid_dec = get_video_decoder();
-        vid_dec.initialize();
+        
+        // TODO: wait for command_posted before starting ?
+        auto &vid_dec = *video_decoder; // TODO: support the passing of a specific stream
 
         //uint8_t buffer[INBUF_SIZE + FF_INPUT_BUFFER_PADDING_SIZE];
         //memset(buffer + INBUF_SIZE, 0, FF_INPUT_BUFFER_PADDING_SIZE);
@@ -241,32 +275,45 @@ void Demuxer::Impl::reader_loop()
 
         while (reader_command != TERMINATE)
         {
-            if (reader_command == SUSPEND)
-            {
-                reader_state = SUSPENDED; // TODO: define and use set_state() ?
-                reader_command = NOP;
-                unique_lock<mutex> lk(reader_mutex);
-                reader_condvar.wait(lk, [this]() { return reader_command == RESUME || reader_command == TERMINATE; });
-            }
-            else 
-            {
-                reader_state = WAITING_FOR_DATA; // TODO: define and use set_state() ?
-                _av(av_read_frame, format_context, &packet);
+            reader_state = WAITING_FOR_DATA;    // TODO: define and use set_state() ?
 
-                reader_state = PROCESSING_DATA; // TODO: define and use set_state() ?
-                vid_dec.decode_packet(&packet); // TODO: replace with "queue_packet()"  (decoupled) ?
-                                                // TODO: call impl directly (get FFmpeg structs out of interfaces) ?
+            _av(av_read_frame, format_context, &packet);
+
+            reader_state = PROCESSING_DATA; // TODO: define and use set_state() ?
+
+            if (vid_dec.decode_packet(&packet)) // TODO: call impl directly ?
+            {
+                if (!vid_dec.all_sinks_ready())
+                {
+                    unique_lock<mutex> lk(reader_mutex);
+
+                    cerr << "Demuxer (reader thread): entering SUSPENDED state" << endl; // TODO: use log
+
+                    reader_state = SUSPENDED; // TODO: notifications ?
+                    command_posted.wait(lk, [this]() { return reader_command == RESUME || reader_command == TERMINATE; });
+
+                    if (reader_command == TERMINATE) break;
+
+                    //lk.unlock();
+                    reader_state = DELIVERING_DATA; // TODO: notification ?
+                    reader_command = NOP;
+                    command_executed.notify_one();
+
+                    cerr << "Demuxer (reader thread): resuming (or terminating)" << endl;
+                }
+                
+                if (reader_command == TERMINATE) break;
+
+                vid_dec.deliver_frame();
             }
         }
 
-        reader_state = TERMINATING; // TODO: define and use set_state() ?
-        vid_dec.cleanup();
-        reader_state = UNDEFINED; // TODO: define and use set_state() ?
+        reader_state = TERMINATED; // TODO: notification ?
     }
     catch (const exception &e) 
     {
         reader_aborted = true;
-        cerr << "Demuxer error while reading: " << e.what() << endl;
+        cerr << "Demuxer (reader thread): error while reading: " << e.what() << endl;
         reader_error = e.what();
     }
 }

@@ -29,12 +29,13 @@ public:
 
     auto peek_newest_video_frame() -> const VideoFrame *;
 
-    auto get_newest_video_frame() -> VideoFrame;
-
     // TODO: replace with approach not depending on video stream ?
     bool video_frame_available();
 
     auto current_video_frame() -> const VideoFrame *;
+
+public: // Implement VideoDecoder::ISink
+
 
 private:
     struct Impl;

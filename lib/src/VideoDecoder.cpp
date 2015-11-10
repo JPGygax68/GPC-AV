@@ -30,17 +30,12 @@ static const size_t MAX_BUFFERED_FRAMES = 10;
 
 struct VideoDecoder::Impl: public Decoder<VideoDecoder, VideoFrame>::Impl {
 
-    bool                    init_done;
-    AVFrame                *frame;
     int                     got_frame;
 
     Impl(AVCodecContext *ctx_, AVCodec *codec_);
     ~Impl();
 
-    void initialize();
-    void cleanup();
-
-    bool decode_packet(AVPacket *packet);       // Returns true if a frame was obtained
+    auto decode_packet(AVPacket *packet) -> bool; // true if a frame was completed
 
     friend class VideoDecoderImpl;
 };
@@ -77,16 +72,6 @@ auto VideoDecoder::create_from_stream(const VideoStream &stream) -> VideoDecoder
     return new VideoDecoder(impl);
 }
 
-void VideoDecoder::initialize()
-{
-    p()->initialize();
-}
-
-void VideoDecoder::cleanup()
-{
-    p()->cleanup();
-}
-
 bool VideoDecoder::decode_packet(void * packet)
 {
     return p()->decode_packet(static_cast<AVPacket*>(packet));
@@ -100,13 +85,13 @@ auto VideoDecoder::p() -> Impl *
 // PIMPL IMPLEMENTATION ---------------------------------------------
 
 VideoDecoder::Impl::Impl(AVCodecContext *ctx_, AVCodec *codec_):
-    Decoder<VideoDecoder, VideoFrame>::Impl(ctx_, codec_), init_done(false)
+    Decoder<VideoDecoder, VideoFrame>::Impl(ctx_, codec_), got_frame(0)
 {
 }
 
 VideoDecoder::Impl::~Impl()
 { 
-    cleanup(); 
+    av_frame_free(&frame);
 
     if (context) {
         _av(avcodec_close, context);
@@ -114,48 +99,11 @@ VideoDecoder::Impl::~Impl()
     }
 }
 
-void VideoDecoder::Impl::initialize()
-{
-    if (!init_done)
-    {
-        //for (auto i = 0U; i < MAX_BUFFERED_FRAMES; i++) queued_frames.push_back(_av(av_frame_alloc));
-        frame = _av(av_frame_alloc);
-        got_frame = 0;
-
-        init_done = true;
-    }
-}
-
-void VideoDecoder::Impl::cleanup()
-{
-    if (init_done)
-    {
-        //for (auto i = 0U; i < MAX_BUFFERED_FRAMES; i++) av_frame_free(&queued_frames[i]);
-        //queued_frames.clear();
-        av_frame_free(&frame);
-        init_done = false;
-    }
-}
-
 bool VideoDecoder::Impl::decode_packet(AVPacket * packet)
 {
-    assert(init_done);
-
     _av(avcodec_decode_video2, context, frame, &got_frame, packet);
 
-    if (got_frame)
-    {
-        // Move frame from "queued" to "ready" queues
-        //lock_guard<mutex> lk(frames_mutex);
-        //ready_frames.push_back(queued_frames.front());
-        //queued_frames.pop_front();
-
-        deliver_frame(VideoFrame(frame));
-
-        got_frame = 0;
-        return true;
-    }
-    else return false;
+    return got_frame != 0;
 }
 
 GPC_AV_NAMESPACE_END

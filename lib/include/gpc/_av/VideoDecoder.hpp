@@ -11,6 +11,8 @@ class VideoFrame;
 
 class VideoDecoder : public Decoder<VideoDecoder, VideoFrame> {
 public:
+    typedef Decoder<VideoDecoder, VideoFrame> ParentClass;
+
     struct Impl; // must be public so it can be accessed by template base class
 
     ~VideoDecoder();
@@ -26,10 +28,7 @@ private: // Interface with Demuxer class
 
     VideoDecoder(Impl*);
 
-    void initialize();
-    void cleanup();
-
-    bool decode_packet(void *packet); // returns true if a new frame was made available
+    bool decode_packet(void *packet); // Returns true if consumer(s) can accept more frames
 
     auto p() -> Impl *;
 };

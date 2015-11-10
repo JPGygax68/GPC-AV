@@ -2,9 +2,11 @@
 #include <cassert>
 
 extern "C" {
-//#include "libavformat/avformat.h"
+#include "libavformat/avformat.h"
 #include "libavcodec/avcodec.h"
 }
+
+#include "checked_calls.hpp"
 
 #include <gpc/_av/internal/Decoder.hpp>
 #include <gpc/_av/internal/Decoder_Impl.hpp>
@@ -44,7 +46,7 @@ auto DecoderBase::time_base() const -> duration_t
 DecoderBase::Impl::Impl() = default;
 
 DecoderBase::Impl::Impl(AVCodecContext *context_, AVCodec *codec_) :
-    context(context_), codec(codec_)
+    context(context_), codec(codec_), frame(_av(av_frame_alloc))
 {}
 
 auto DecoderBase::Impl::time_base() const -> duration_t

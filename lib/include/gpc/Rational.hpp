@@ -61,6 +61,8 @@ namespace gpc {
 
         auto reduce() -> Rational&
         {
+            assert(den != 0);
+
             // TODO: use compile-time sequence ?
             static const std::array<Int, 10> PRIME_NUMBERS{
                 2, 3, 5, 7, 11, 13, 17, 19, 23, 29

@@ -39,21 +39,21 @@ void FrameBase::assign(FrameBase &&from)
     from.frame = nullptr;
 }
 
-FrameBase::FrameBase(AVFrame *frame_): 
-    frame(frame_)
+FrameBase::FrameBase(AVFrame *from): 
+    frame(_av(av_frame_clone, from))
 {
+}
+
+FrameBase::~FrameBase()
+{
+    av_frame_unref(frame);
+    av_frame_free(&frame);
+    assert(!frame);
 }
 
 auto FrameBase::presentation_timestamp() -> int64_t
 {
     return frame->pts;
-}
-
-FrameBase::~FrameBase()
-{
-    //av_frame_free(&frame);
-    av_frame_unref(frame);
-    //assert(!frame);
 }
 
 GPC_AV_NAMESPACE_END

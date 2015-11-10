@@ -1,6 +1,7 @@
 #pragma once
 
 #include <map>
+#include <algorithm>
 
 #include "../Rational.hpp"
 
@@ -18,6 +19,7 @@ struct DecoderBase::Impl {
 
     AVCodecContext         *context;
     AVCodec                *codec;
+    AVFrame                *frame;
 
     Impl();
     Impl(AVCodecContext *, AVCodec *);
@@ -29,35 +31,43 @@ struct DecoderBase::Impl {
 template <class Class, class FrameClass>
 struct Decoder<Class, FrameClass>::Impl: public DecoderBase::Impl {
 
-    typedef typename Class::Consumer Consumer;
-    typedef typename Class::FrameClass FrameClass;
+    typedef typename Class::ISink       ISink;
 
-    struct ConsumerList {
-        std::map<int, Consumer> map;
+    struct SinkList {
+        std::map<int, ISink&>   map;
         int                     next_token;
     };
 
-    ConsumerList    consumers;
+    SinkList    sinks;
 
     using DecoderBase::Impl::Impl;
 
-    auto add_consumer(Consumer consumer) -> int
+    auto add_sink(ISink &sink) -> int
     {
-        int token = consumers.next_token++;
-        consumers.map.insert({ token, consumer });
+        int token = sinks.next_token++;
+        sinks.map.emplace(token, sink);
         return token;
     }
 
-    void remove_consumer(int token)
+    void remove_sink(int token)
     {
-        consumers.map.erase(token);
+        sinks.map.erase(token);
     }
 
-    void deliver_frame(const FrameClass &frame)
+    auto all_sinks_ready() const -> bool
     {
-        for (auto &entry : consumers.map)
+        return all_of(begin(sinks.map), end(sinks.map), [](const decltype(sinks.map)::value_type &entry) { return entry.second.ready(); });
+    }
+
+    void deliver_frame()
+    {
+        assert(all_sinks_ready());
+
+        for (auto &entry: sinks.map)
         {
-            entry.second(frame);
+            ISink &sink = entry.second;
+
+            sink.process_frame(FrameClass(frame));
         }
     }
 };

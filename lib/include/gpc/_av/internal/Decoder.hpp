@@ -15,6 +15,11 @@ class FrameBase;
 class DecoderBase {
 public:
 
+    class ISink {
+    public:
+        virtual auto ready() -> bool = 0;
+    };
+
     typedef Rational duration_t;
 
     auto time_base() const -> duration_t;
@@ -33,15 +38,20 @@ template <class Class, class FrameClass>
 class Decoder : public DecoderBase {
 public:
 
-    typedef FrameClass FrameClass;
-    typedef std::function<void(const FrameClass &)> Consumer;
+    class ISink: public DecoderBase::ISink {
+    public:
+        virtual void process_frame(const FrameClass &) = 0;
+    };
 
-    /** Add or remove a "consumer", i.e. a callback that will receive
-    frames as they are decoded.
+    /** Add a sink (i.e. a frame "consumer").
     */
-    auto add_consumer(Consumer consumer) -> int;
+    auto add_sink(ISink&) -> int;
 
-    void remove_consumer(int token);
+    void remove_sink(int token);
+
+    auto all_sinks_ready() -> bool;
+
+    void deliver_frame();
 
 protected:
     struct Impl;

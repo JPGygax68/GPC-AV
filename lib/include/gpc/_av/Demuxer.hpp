@@ -25,11 +25,17 @@ public:
     void start();
     void stop();
 
+    auto is_suspended() -> bool;
+
     void suspend();
     void resume();
 
+    auto video_stream() -> VideoStream;
+
     auto video_decoder() -> VideoDecoder&;
-    auto find_best_video_stream() -> VideoStream;
+
+    // FUTURE EXTENSION
+    // auto find_best_video_stream() -> VideoStream;
 
 private:
     struct Impl;
