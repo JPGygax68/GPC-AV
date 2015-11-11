@@ -207,7 +207,7 @@ auto Demuxer::Impl::find_best_video_stream() -> AVStream*
     return format_context->streams[st_idx];
 }
 
-auto Demuxer::Impl::make_video_decoder(AVStream *stream) -> VideoDecoder *
+auto Demuxer::Impl::make_video_decoder(AVStream *stream) -> VideoDecoder*
 {
     assert(!video_stream);
     assert(!video_decoder);
@@ -281,7 +281,11 @@ void Demuxer::Impl::reader_loop()
 
             reader_state = PROCESSING_DATA; // TODO: define and use set_state() ?
 
-            if (vid_dec.decode_packet(&packet)) // TODO: call impl directly ?
+            bool got_frame = vid_dec.decode_packet(&packet);  // TODO: call impl directly ?
+            
+            av_packet_unref(&packet);
+
+            if (got_frame)
             {
                 if (!vid_dec.all_sinks_ready())
                 {

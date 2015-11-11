@@ -1,3 +1,22 @@
+2015-11-10
+==========
+
+An important lesson learned tonight: properly setting a condition variable always requires acquiring a lock first.
+
+While waiting on a condition variable implicitly requires a lock, it is possible to forget acquiring a lock when setting a variable and notifying the other thread(s). The holy trinity however runs like this:
+
+lock_guard<mutex> lk(the_mutex);
+variable = VALUE;
+condition.notify_one(); // or notify_all();
+
+I think I saw somewhere that the lock may be unlocked prior to calling notify_xxx(), but on the other hand, all examples I'm seeing online always use the above form where the lock is still locked at notification time.
+I do think however that the crucial item is using the mutex to protect modifications to the variable. The "other thread" needs to acquire the mutex to look at the variable - waiting however is optional, so the typical form used on the "other thread" is:
+
+unique_lock<mutex> lk(the_mutex);
+while (!variable == VALUE)
+  condition.wait(lk);
+  
+
 2015-11-06
 ==========
 
