@@ -1,3 +1,36 @@
+2015-11-13
+==========
+
+Other than spending an awful lot of time on a really silly bug yesterday, I made another observation yesterday: even though the current implementation of the Demuxer does not yet obtain per-frame timestamps (they are all zero), the video does not play at "full steam ahead". In fact, it seems to play at exactly the right speed. I need to investigate.
+
+...
+
+Well searching around on SO didn't yield an answer to that, but it revealed a new..
+
+TODO: flush the decoder by feeding it empty packets: http://stackoverflow.com/a/25533696/754534
+
+-------
+
+After drastically incrementing the size of the video frame queue in the Player class, it is clear now that the playing speed matching the video speed must have been pure coincidence (though it is a bit hard to believe): with increased queue size, video playback is now at roughly twice the speed, except in spots where the video decoder has to work harder than usual, such as leaving a tunnel.
+
+Also, there still are times when playback just freezes for a second or two; it seems that the filesystem or the disk is the culprit here. This will probably be best addressed by implementing a queue on packets (under the proviso that decoding takes constant time, queueing packets should use up less space than queuing the decoded frames, as the packets carry data that is still compressed).
+
+2015-11-11
+==========
+
+Getting multithreading to work correctly gave me a lot of trouble. It may be a good idea to create a reusable WorkerThread class that handles the communication part, i.e. at least command/acknowledge and thread-safe state queries, plus possibly notifications on state changes.
+
+----------
+
+YUVPainter faces a problem stemming from the fact that FFMpeg defines video format identifiers as an enum that contains conditional parts. This makes it impossible to rely on a specific format being identified by a specific number.
+
+What this means that is that the YUVPainter class MUST be translated for the specific version of FFMPEG being employed, and that it if it is ever distributed in binary form, it should be bundled with the binaries of FFmpeg themselves. It would be more prudent, however, to add the YUVPainter module to a project in source form, so that it will automatically - bar an erroneous project setup - use the right values.
+
+---
+
+Addendum to the above: an alternative would be to find another way to describe the format to the YUV painter, one that does not involve an identifier.
+
+
 2015-11-10
 ==========
 

@@ -103,6 +103,15 @@ bool VideoDecoder::Impl::decode_packet(AVPacket * packet)
 {
     _av(avcodec_decode_video2, context, frame, &got_frame, packet);
 
+    if (got_frame)
+    {
+        if (frame->pts == 0 && frame->pkt_pts == 0)
+        {
+            // Dirty hack - then again, FFmpeg is supposed to do that on its own
+            frame->pts = packet->pts;
+        }
+    }
+
     return got_frame != 0;
 }
 

@@ -20,10 +20,12 @@ using namespace std;
 
 struct Player::Impl {
 
-    static const size_t MAX_VIDEO_QUEUE_SIZE = 2;   // TODO: replace with setting and/or dynamic value
+    static const size_t MIN_VIDEO_INITIAL_QUEUE_SIZE = 10;
+    static const size_t MAX_VIDEO_QUEUE_SIZE = 20;              // TODO: replace with setting and/or dynamic value
 
     class VideoSink : public VideoDecoder::ISink {
     public:
+        VideoSink(Player::Impl &owner);
         ~VideoSink();
 
         auto ready() -> bool override;
@@ -33,11 +35,12 @@ struct Player::Impl {
         friend class Player;
         friend struct Player::Impl;
 
+        Player::Impl       &owner;
         deque<VideoFrame>   frame_queue;
         mutex               queue_mutex;
     };
 
-    enum State { UNDEFINED = 0, PLAYING, PAUSED };
+    enum State { UNDEFINED = 0, BUFFERING, PLAYING, PAUSED, FINISHED };
 
     typedef chrono::high_resolution_clock   clock_t;
     typedef clock_t::duration               duration_t;
@@ -57,6 +60,9 @@ struct Player::Impl {
 
     void suspend_demuxing();
     void try_resume_demuxing();
+
+    void added_new_video_frame();
+    void added_new_audio_frame();
 
     Demuxer             demuxer;
     VideoSink           video_sink;
@@ -108,7 +114,8 @@ auto Player::current_video_frame() -> const VideoFrame *
 // IMPLEMENTATION (PIMPL) -------------------------------------------
 
 Player::Impl::Impl():
-    state(UNDEFINED)
+    state(UNDEFINED),
+    video_sink{*this}
 {
 }
 
@@ -129,7 +136,7 @@ void Player::Impl::open(const std::string & url)
 void Player::Impl::play()
 {
     demuxer.start();
-    state = PLAYING; // TODO: notify subscribers ?
+    state = BUFFERING; // TODO: notify subscribers ?
 }
 
 void Player::Impl::pause()
@@ -156,32 +163,44 @@ auto Player::Impl::current_video_frame() -> const VideoFrame *
     }
     else 
     {
-        if (starting_timepoint == timepoint_t())
+        //if (starting_timepoint == timepoint_t())
+        if (state == BUFFERING && (video_sink.frame_queue.size() >= MIN_VIDEO_INITIAL_QUEUE_SIZE || demuxer.stream_ended()))
         {
             starting_timepoint = clock.now();
+            state = PLAYING; // TODO: notification
         }
 
-        auto curr_time = clock.now() - starting_timepoint;
-
-        // Eliminate elapsed frames (but keep at least one, even if elapsed)
-        while (video_sink.frame_queue.size() > 1)
+        if (state == PLAYING)
         {
-            // If not elapsed, stop
-            auto presentation_time = video_sink.frame_queue[0].presentation_timestamp() * demuxer.video_stream().time_base();
-            if (presentation_time > curr_time) break;
+            auto curr_time = clock.now() - starting_timepoint;
 
-            // Remove from queue
-            video_sink.frame_queue.pop_front();
+            // Eliminate elapsed frames (but keep at least one, even if elapsed)
+            // TODO: handle end of stream from demuxer
+            while (video_sink.frame_queue.size() > 1)
+            {
+                // If not elapsed, stop
+                auto presentation_time = video_sink.frame_queue[0].presentation_timestamp() * demuxer.video_stream().time_base();
+                if (presentation_time > curr_time)
+                    break;
+
+                // Remove from queue
+                video_sink.frame_queue.pop_front();
+
+                // Tell demuxer to resume
+                if (demuxer.is_suspended())
+                {
+                    demuxer.resume();
+                }
+            }
+
+            auto &frame = video_sink.frame_queue.front();
+
+            return &frame;
         }
-
-        auto &frame = video_sink.frame_queue.front();
-
-        if (demuxer.is_suspended())
+        else
         {
-            demuxer.resume();
+            return nullptr;
         }
-
-        return &frame;
     }
 }
 
@@ -203,7 +222,22 @@ void Player::Impl::try_resume_demuxing()
     }
 }
 
+void Player::Impl::added_new_video_frame()
+{
+    // TODO
+}
+
+void Player::Impl::added_new_audio_frame()
+{
+    // TODO
+}
+
 // IMPL SUBCLASS: VideoSink -----------------------------------------
+
+Player::Impl::VideoSink::VideoSink(Player::Impl &owner_):
+    owner(owner_)
+{
+}
 
 Player::Impl::VideoSink::~VideoSink()
 {
@@ -223,6 +257,7 @@ void Player::Impl::VideoSink::process_frame(const VideoFrame &frame)
 
     frame_queue.emplace_back(frame);
 
+    owner.added_new_video_frame();
 }
 
 GPC_AV_NAMESPACE_END

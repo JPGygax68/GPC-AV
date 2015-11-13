@@ -14,6 +14,7 @@ extern "C" {
 #include "checked_calls.hpp"
 
 #include <gpc/_av/config.hpp>
+#include <gpc/_av/Packet.hpp>
 #include <gpc/_av/VideoDecoder.hpp>
 #include <gpc/_av/VideoStream.hpp>
 
@@ -27,10 +28,10 @@ using namespace std;
 
 struct Demuxer::Impl {
 
-    //static const size_t INBUF_SIZE = 4096;
+    static const size_t INITIAL_PACKET_QUEUE_SIZE = 150; // FOR STORAGE-BASED STREAMS ONLY!
 
     enum ReaderCommand { NOP = 0, SUSPEND, RESUME, TERMINATE };
-    enum ReaderState { UNDEFINED = 0, WAITING_FOR_DATA, PROCESSING_DATA, DELIVERING_DATA, SUSPENDED, TERMINATED };
+    enum ReaderState { UNDEFINED = 0, OBTAINING_DATA, PROCESSING_DATA, DELIVERING_DATA, SUSPENDED, TERMINATED };
 
     AVFormatContext                *format_context;
     AVStream                       *video_stream;
@@ -42,6 +43,7 @@ struct Demuxer::Impl {
     ReaderCommand                   reader_command;
     ReaderState                     reader_state;
 
+    bool                            reader_eos;
     bool                            reader_aborted;
     string                          reader_error;
 
@@ -54,6 +56,7 @@ struct Demuxer::Impl {
     auto make_video_decoder(AVStream *) -> VideoDecoder *;
     auto find_best_video_stream() -> AVStream*;
     auto is_suspended() -> bool;
+    auto stream_ended() -> bool;
     void suspend();
     void resume();
 
@@ -147,6 +150,11 @@ auto Demuxer::is_suspended() -> bool
     return p->is_suspended();
 }
 
+auto Demuxer::stream_ended() -> bool
+{
+    return p->stream_ended();
+}
+
 void Demuxer::suspend()
 {
     p->suspend();
@@ -225,6 +233,13 @@ auto Demuxer::Impl::is_suspended() -> bool
     return reader_state == SUSPENDED;
 }
 
+auto Demuxer::Impl::stream_ended() -> bool
+{
+    // No need to lock the access, as the reader thread only sets this to true, never back to false
+
+    return reader_eos;
+}
+
 /*  TODO: this implementation may suspend the caller until the currently active
         reading operation (in the reader thread) is done or times out. It may
         be better to return immediately and put the player into a "command queued"
@@ -270,46 +285,74 @@ void Demuxer::Impl::reader_loop()
         //uint8_t buffer[INBUF_SIZE + FF_INPUT_BUFFER_PADDING_SIZE];
         //memset(buffer + INBUF_SIZE, 0, FF_INPUT_BUFFER_PADDING_SIZE);
 
-        AVPacket packet;
-        av_init_packet(&packet);
+        deque<Packet> packet_queue;
+        bool playing = false; // TODO: make this publicly readable ? (like reader_eos)
+        reader_eos = false;
 
         while (reader_command != TERMINATE)
         {
-            reader_state = WAITING_FOR_DATA;    // TODO: define and use set_state() ?
-
-            _av(av_read_frame, format_context, &packet);
-
-            reader_state = PROCESSING_DATA; // TODO: define and use set_state() ?
-
-            bool got_frame = vid_dec.decode_packet(&packet);  // TODO: call impl directly ?
-            
-            av_packet_unref(&packet);
-
-            if (got_frame)
+            if (!reader_eos)
             {
-                if (!vid_dec.all_sinks_ready())
+                reader_state = OBTAINING_DATA;    // TODO: define and use set_state() ?
+
+                packet_queue.emplace_back();
+                int err = av_read_frame(format_context, &packet_queue.back().av_pkt);
+                if (err < 0)
                 {
-                    unique_lock<mutex> lk(reader_mutex);
-
-                    cerr << "Demuxer (reader thread): entering SUSPENDED state" << endl; // TODO: use log
-
-                    reader_state = SUSPENDED; // TODO: notifications ?
-                    command_posted.wait(lk, [this]() { return reader_command == RESUME || reader_command == TERMINATE; });
-
-                    if (reader_command == TERMINATE) break;
-
-                    //lk.unlock();
-                    reader_state = DELIVERING_DATA; // TODO: notification ?
-                    reader_command = NOP;
-                    command_executed.notify_one();
-
-                    cerr << "Demuxer (reader thread): resuming (or terminating)" << endl;
+                    cerr << "Demuxer (reader thread): end of file/stream or error, terminating" << endl;
+                    reader_eos = true;
                 }
-                
-                if (reader_command == TERMINATE) break;
-
-                vid_dec.deliver_frame();
+                // TODO: only fill the queue when buffering delays are not an issue
+                // TODO: determine number of packets to buffer individually for each stream, 
+                // based on how many packets were necessary to decode the first (few ?) frame(s)
+                if (!playing && (packet_queue.size() >= INITIAL_PACKET_QUEUE_SIZE || err < 0))
+                {
+                    playing = true; // TODO: send notification
+                }
             }
+
+            if (playing)
+            {
+                if (!packet_queue.empty())
+                {
+                    reader_state = PROCESSING_DATA; // TODO: define and use set_state() ?
+
+                    auto &packet = packet_queue.front();
+                    bool got_frame = vid_dec.decode_packet(&packet.av_pkt); // TODO: call impl directly ?
+                                                                            // TODO: use Packet wrapper
+                    packet_queue.pop_front();
+
+                    if (got_frame)
+                    {
+                        if (!vid_dec.all_sinks_ready())
+                        {
+                            unique_lock<mutex> lk(reader_mutex);
+
+                            cerr << "Demuxer (reader thread): entering SUSPENDED state" << endl; // TODO: use log
+
+                            reader_state = SUSPENDED; // TODO: notifications ?
+                            command_posted.wait(lk, [this]() { return reader_command == RESUME || reader_command == TERMINATE; });
+
+                            if (reader_command == TERMINATE) break;
+
+                            //lk.unlock();
+                            reader_state = DELIVERING_DATA; // TODO: notification ?
+                            reader_command = NOP;
+                            command_executed.notify_one();
+
+                            cerr << "Demuxer (reader thread): resuming (or terminating)" << endl;
+                        }
+
+                        if (reader_command == TERMINATE) break;
+
+                        vid_dec.deliver_frame();
+                    }
+                }
+                else // (packet queue empty)
+                {
+                    if (reader_eos) break;
+                }
+            } // if playing
         }
 
         reader_state = TERMINATED; // TODO: notification ?

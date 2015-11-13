@@ -26,6 +26,7 @@ public:
     void stop();
 
     auto is_suspended() -> bool;
+    auto stream_ended() -> bool;
 
     void suspend();
     void resume();

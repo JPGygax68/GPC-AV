@@ -12,7 +12,13 @@ public:
 
     using Frame<VideoFrame>::Frame;
 
+    auto _format() const -> int;
+
     auto size() const -> Size;
+
+    auto Y() const -> const uint8_t *;
+    auto U() const -> const uint8_t *;
+    auto V() const -> const uint8_t *;
 
 private:
     friend class VideoDecoder;

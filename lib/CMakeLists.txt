@@ -5,6 +5,7 @@ set(SOURCE_FILES
   "src/player.cpp"
   "src/Demuxer.cpp" 
   "src/Stream.cpp"
+  "src/Packet.cpp"
   "src/VideoStream.cpp"
   "src/VideoDecoder.cpp"
   "src/DecoderBase.cpp" 
@@ -24,6 +25,7 @@ set(HEADER_FILES
   "include/gpc/_av/Player.hpp"
   "include/gpc/_av/Demuxer.hpp"
   "include/gpc/_av/Stream.hpp"
+  "include/gpc/_av/Packet.hpp"
   "include/gpc/_av/VideoStream.hpp"
   "include/gpc/_av/internal/Decoder.hpp"
   "include/gpc/_av/internal/Decoder_Impl.hpp"
@@ -100,6 +102,16 @@ endif()
 find_package(glbinding REQUIRED)
 target_link_libraries(${PROJECT_NAME} PRIVATE ${GLBINDING_LIBRARIES})
 target_compile_definitions(${PROJECT_NAME} PRIVATE GLBINDING_STATIC)
+
+# GPC GL utilities
+find_package(libGPCGLUtils REQUIRED)
+target_link_libraries(${PROJECT_NAME} PRIVATE libGPCGLUtils)
+
+# GPC GL Wrappers
+# TODO: this should get pulled in automatically by GPC GL Utils, but there is a problem with CMake there
+find_package(libGPCGLWrappers REQUIRED)
+get_target_property(libGPCGLWrappers_INCLUDE_DIRECTORIES libGPCGLWrappers INTERFACE_INCLUDE_DIRECTORIES)
+target_include_directories(${PROJECT_NAME} PRIVATE "${libGPCGLWrappers_INCLUDE_DIRECTORIES}")
 
 # EXPORT && INSTALLATION --------------------------------------------
 
