@@ -16,6 +16,7 @@ public:
 
     using Ancestor::Ancestor;
 
+    Rational() : Ancestor() {}
     Rational(const AVRational &avr);
 };
 

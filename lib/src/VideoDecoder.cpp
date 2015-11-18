@@ -101,7 +101,9 @@ VideoDecoder::Impl::~Impl()
 
 bool VideoDecoder::Impl::decode_packet(AVPacket * packet)
 {
-    _av(avcodec_decode_video2, context, frame, &got_frame, packet);
+    //_av(avcodec_decode_video2, context, frame, &got_frame, packet);
+    int err = avcodec_decode_video2(context, frame, &got_frame, packet);
+        // TODO: handle error
 
     if (got_frame)
     {

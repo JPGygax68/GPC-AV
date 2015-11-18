@@ -10,12 +10,16 @@ namespace gpc {
     class Rational {
     public:
 
-        Rational() : num(0), den(1) {}
-
-        Rational(Int num_, Int den_ = static_cast<Int>(1)) : num(num_), den(den_) {}
+        Rational(Int num_ = static_cast<Int>(0), Int den_ = static_cast<Int>(1)) : num(num_), den(den_) {}
 
         template <typename Duration>
         Rational(const Duration &dur) : num(dur.count()), den(Duration::period::den) {}
+
+        auto operator = (const Rational &from)
+        {
+            num = from.num, den = from.den;
+            return *this;
+        }
 
         auto operator / (const Rational &dsor) -> Rational
         {
@@ -90,7 +94,7 @@ namespace gpc {
             return *this;
         }
 
-        //template <typename Int_> friend std::ostream& operator << (std::ostream&, const Rational<Int_> &);
+        template <typename Int_> friend std::ostream& operator << (std::ostream&, const Rational<Int_> &);
         template <typename Int_> friend Rational<Int> operator * (Int op1, const Rational<Int_> &op2);
 
         Int num, den;

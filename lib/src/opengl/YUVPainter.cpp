@@ -22,7 +22,7 @@ namespace gl {
     struct YUVPainter::Impl {
         void initialize(int format, const Size &size);
         void cleanup();
-        void load_frame(const Frame &);
+        void prepare_frame(const Frame &, bool load_image);
         void set_modelview_matrix (const float *matrix);
         void set_projection_matrix(const float *matrix);
         void disable_texture_units();
@@ -45,7 +45,7 @@ namespace gl {
 
     void YUVPainter::cleanup() { p->cleanup(); }
 
-    void YUVPainter::load_frame(const Frame &frame) { p->load_frame(frame); }
+    void YUVPainter::prepare_frame(const Frame &frame, bool load_image) { p->prepare_frame(frame, load_image); }
 
     void YUVPainter::set_modelview_matrix(const float * matrix)
     {
@@ -71,8 +71,8 @@ namespace gl {
         EXEC_GL(glGenTextures, 1, &texture);
         EXEC_GL(glBindTexture, GL_TEXTURE_2D, texture);
         EXEC_GL(glTexImage2D, GL_TEXTURE_2D, 0, (GLint) GL_LUMINANCE, width, height, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, nullptr);
-        EXEC_GL(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, (GLint) GL_NEAREST);
-        EXEC_GL(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, (GLint) GL_NEAREST);
+        EXEC_GL(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, (GLint) GL_LINEAR); //GL_NEAREST);
+        EXEC_GL(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, (GLint) GL_LINEAR); //GL_NEAREST);
 
         return texture;
     }
@@ -116,21 +116,19 @@ namespace gl {
         EXEC_GL(glDeleteProgram, shader_program); shader_program = 0;
     }
 
-    void YUVPainter::Impl::load_frame(const Frame &frame) 
+    void YUVPainter::Impl::prepare_frame(const Frame &frame, bool load_image) 
     {
-        const uint8_t *p;
-
         EXEC_GL(glActiveTexture, GL_TEXTURE0 + 0);
         EXEC_GL(glBindTexture, GL_TEXTURE_2D, Y_tex);
-        EXEC_GL(glTexSubImage2D, GL_TEXTURE_2D, 0, 0, 0, frame_size.w   , frame_size.h     , GL_LUMINANCE, GL_UNSIGNED_BYTE, frame.y);
+        if (load_image) EXEC_GL(glTexSubImage2D, GL_TEXTURE_2D, 0, 0, 0, frame_size.w, frame_size.h, GL_LUMINANCE, GL_UNSIGNED_BYTE, frame.y);
 
         EXEC_GL(glActiveTexture, GL_TEXTURE0 + 1);
         EXEC_GL(glBindTexture, GL_TEXTURE_2D, Cb_tex);
-        EXEC_GL(glTexSubImage2D, GL_TEXTURE_2D, 0, 0, 0, frame_size.w / 2, frame_size.h / 2, GL_LUMINANCE, GL_UNSIGNED_BYTE, frame.u);
+        if (load_image) EXEC_GL(glTexSubImage2D, GL_TEXTURE_2D, 0, 0, 0, frame_size.w / 2, frame_size.h / 2, GL_LUMINANCE, GL_UNSIGNED_BYTE, frame.u);
 
         EXEC_GL(glActiveTexture, GL_TEXTURE0 + 2);
         EXEC_GL(glBindTexture, GL_TEXTURE_2D, Cr_tex);
-        EXEC_GL(glTexSubImage2D, GL_TEXTURE_2D, 0, 0, 0, frame_size.w / 2, frame_size.h / 2, GL_LUMINANCE, GL_UNSIGNED_BYTE, frame.v);
+        if (load_image) EXEC_GL(glTexSubImage2D, GL_TEXTURE_2D, 0, 0, 0, frame_size.w / 2, frame_size.h / 2, GL_LUMINANCE, GL_UNSIGNED_BYTE, frame.v);
 
         EXEC_GL(glUseProgram, shader_program);
 

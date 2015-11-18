@@ -247,14 +247,14 @@ auto Demuxer::Impl::stream_ended() -> bool
  */
 void Demuxer::Impl::suspend()
 {
-    cout << "Demuxer: suspending..." << endl;
+    // cout << "Demuxer: suspending..." << endl;
 
     unique_lock<mutex> lk(reader_mutex);
     reader_command = SUSPEND;
     command_posted.notify_one();
     command_executed.wait(lk, [this]() { return reader_state == SUSPENDED || reader_state == TERMINATED; });
 
-    cout << "Demuxer: now suspended (or terminating)." << endl;
+    // cout << "Demuxer: now suspended (or terminating)." << endl;
 }
 
 void Demuxer::Impl::resume()
@@ -262,17 +262,17 @@ void Demuxer::Impl::resume()
     // TODO: support multiple streams with multiple consumers, i.e. only resume when number of
     // calls to resume() matches number of congested consumers
 
-    cout << "Demuxer: resuming..." << endl;
+    // cout << "Demuxer: resuming..." << endl;
 
-    unique_lock<mutex> lk(reader_mutex);
+    //unique_lock<mutex> lk(reader_mutex);
 
     assert(reader_state == SUSPENDED);
 
     reader_command = RESUME;
     command_posted.notify_one();
-    command_executed.wait(lk, [this]() { return reader_state != SUSPENDED; });
+    //command_executed.wait(lk, [this]() { return reader_state != SUSPENDED; });
 
-    cout << "Demuxer: resumed." << endl;
+    //cout << "Demuxer: resumed." << endl;
 }
 
 void Demuxer::Impl::reader_loop()
@@ -307,7 +307,7 @@ void Demuxer::Impl::reader_loop()
                 // based on how many packets were necessary to decode the first (few ?) frame(s)
                 if (!playing && (packet_queue.size() >= INITIAL_PACKET_QUEUE_SIZE || err < 0))
                 {
-                    playing = true; // TODO: send notification
+                    playing = true; // TODO: send notification; better name than "playing", misleading
                 }
             }
 
@@ -318,8 +318,15 @@ void Demuxer::Impl::reader_loop()
                     reader_state = PROCESSING_DATA; // TODO: define and use set_state() ?
 
                     auto &packet = packet_queue.front();
-                    bool got_frame = vid_dec.decode_packet(&packet.av_pkt); // TODO: call impl directly ?
-                                                                            // TODO: use Packet wrapper
+                    auto stream = format_context->streams[packet.av_pkt.stream_index];
+
+                    bool got_frame = false;
+                    if (stream->codec->codec_type == AVMEDIA_TYPE_VIDEO)
+                    {
+                        got_frame = vid_dec.decode_packet(&packet.av_pkt); // TODO: call impl directly ?                                                                            // TODO: use Packet wrapper
+                    }
+                    // TODO: other packet types
+
                     packet_queue.pop_front();
 
                     if (got_frame)
@@ -328,7 +335,7 @@ void Demuxer::Impl::reader_loop()
                         {
                             unique_lock<mutex> lk(reader_mutex);
 
-                            cerr << "Demuxer (reader thread): entering SUSPENDED state" << endl; // TODO: use log
+                            //cerr << "Demuxer (reader thread): entering SUSPENDED state" << endl; // TODO: use log
 
                             reader_state = SUSPENDED; // TODO: notifications ?
                             command_posted.wait(lk, [this]() { return reader_command == RESUME || reader_command == TERMINATE; });
@@ -340,7 +347,7 @@ void Demuxer::Impl::reader_loop()
                             reader_command = NOP;
                             command_executed.notify_one();
 
-                            cerr << "Demuxer (reader thread): resuming (or terminating)" << endl;
+                            //cerr << "Demuxer (reader thread): resuming (or terminating)" << endl;
                         }
 
                         if (reader_command == TERMINATE) break;

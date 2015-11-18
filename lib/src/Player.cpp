@@ -4,11 +4,14 @@
 #include <mutex>
 #include <chrono>
 #include <cassert>
+#include <iostream>
 
 #include <gpc/_av/Demuxer.hpp>
 #include <gpc/_av/VideoDecoder.hpp>
 #include <gpc/_av/VideoStream.hpp>
 #include <gpc/_av/VideoFrame.hpp>
+#include <gpc/_av/internal/HighResClock.hpp>
+#include <gpc/Rational.hpp>
 
 #include <gpc/_av/Player.hpp>
 
@@ -20,8 +23,9 @@ using namespace std;
 
 struct Player::Impl {
 
-    static const size_t MIN_VIDEO_INITIAL_QUEUE_SIZE = 10;
-    static const size_t MAX_VIDEO_QUEUE_SIZE = 20;              // TODO: replace with setting and/or dynamic value
+    static const size_t MIN_VIDEO_INITIAL_QUEUE_SIZE = 5;
+    static const size_t TARGET_VIDEO_QUEUE_SIZE = 8;
+    static const size_t MAX_VIDEO_QUEUE_SIZE = 10;              // TODO: replace with setting and/or dynamic value
 
     class VideoSink : public VideoDecoder::ISink {
     public:
@@ -42,7 +46,8 @@ struct Player::Impl {
 
     enum State { UNDEFINED = 0, BUFFERING, PLAYING, PAUSED, FINISHED };
 
-    typedef chrono::high_resolution_clock   clock_t;
+    //typedef chrono::high_resolution_clock   clock_t;
+    typedef ::gpc::HighResClock             clock_t;
     typedef clock_t::duration               duration_t;
     typedef clock_t::time_point             timepoint_t;
 
@@ -71,6 +76,9 @@ struct Player::Impl {
     State               state;
     timepoint_t         starting_timepoint;
     size_t              stall_count;
+
+    Rational            last_pts;
+    Rational            greatest_pts_lapse;
 };
 
 // PUBLIC METHODS ---------------------------------------------------
@@ -137,6 +145,9 @@ void Player::Impl::play()
 {
     demuxer.start();
     state = BUFFERING; // TODO: notify subscribers ?
+
+    last_pts = { 0, 1 };
+    greatest_pts_lapse = { 0, 1 };
 }
 
 void Player::Impl::pause()
@@ -155,36 +166,81 @@ auto Player::Impl::peek_newest_video_frame() -> const VideoFrame *
 
 auto Player::Impl::current_video_frame() -> const VideoFrame *
 {
+    class ProfilingTimer {
+    public:
+        ProfilingTimer(clock_t &clock_): clock(clock_)
+        {
+            start = clock.now();
+        }
+        ~ProfilingTimer()
+        {
+            auto now = clock.now();
+            if (Rational {5, 1000} < (now - start))
+            {
+                cerr << "Player::current_video_frame(): execution took too long:" << (now - start).count() << endl;
+            }
+        }
+        private:
+            clock_t &clock;
+            clock_t::time_point start;
+    };
+
+    /*
+    static clock_t::time_point last_time;
+    static bool already_called = false;
+
+    if (!already_called) 
+    {
+        already_called = true;
+    }
+    else
+    {
+        auto now = clock.now();
+        auto elapsed = now - last_time;
+        if (Rational{ 3, 24*2 } < elapsed) cerr << "More than one frame duration has elapsed since last call" << endl;
+        last_time = now;
+    }
+    */
+
     unique_lock<mutex> lk(video_sink.queue_mutex);
-    
+
     if (video_sink.frame_queue.empty())
     {
         return nullptr;
     }
     else 
     {
-        //if (starting_timepoint == timepoint_t())
+        auto now = clock.now();
+
+        auto &video_stream = demuxer.video_stream();
+        // TODO: audio stream, others
+
         if (state == BUFFERING && (video_sink.frame_queue.size() >= MIN_VIDEO_INITIAL_QUEUE_SIZE || demuxer.stream_ended()))
         {
-            starting_timepoint = clock.now();
+            starting_timepoint = now;
             state = PLAYING; // TODO: notification
         }
 
         if (state == PLAYING)
         {
-            auto curr_time = clock.now() - starting_timepoint;
+            auto curr_time = now - starting_timepoint;
 
             // Eliminate elapsed frames (but keep at least one, even if elapsed)
             // TODO: handle end of stream from demuxer
             while (video_sink.frame_queue.size() > 1)
             {
+                auto &frame = video_sink.frame_queue.front();
+
                 // If not elapsed, stop
-                auto presentation_time = video_sink.frame_queue[0].presentation_timestamp() * demuxer.video_stream().time_base();
+                auto presentation_time = frame.presentation_timestamp() * video_stream.time_base();
                 if (presentation_time > curr_time)
                     break;
 
                 // Remove from queue
                 video_sink.frame_queue.pop_front();
+
+                // TODO: replace with adaptive number (e.g. 1/4 of maximum queue size?)
+                if (video_sink.frame_queue.size() < 4) cerr << "Player:: frame queue size dropped below 4" << endl;
 
                 // Tell demuxer to resume
                 if (demuxer.is_suspended())
@@ -193,9 +249,27 @@ auto Player::Impl::current_video_frame() -> const VideoFrame *
                 }
             }
 
-            auto &frame = video_sink.frame_queue.front();
+            // Because frames can be out of order, find the "earliest" among the non-expired
+            auto best_frame = &video_sink.frame_queue.front();
+            for (auto it = begin(video_sink.frame_queue) + 1; it != end(video_sink.frame_queue); it++)
+            {
+                if (it->presentation_timestamp() < best_frame->presentation_timestamp())
+                {
+                    best_frame = &(*it);
+                }
+            }
 
-            return &frame;
+            /*
+            auto curr_pts = best_frame->presentation_timestamp() * video_stream.time_base();
+            auto lapse = curr_pts - last_pts;
+            if (Rational{ 11, 240 } < lapse)
+            {
+                cerr << "Lapse between frames greater than timebase: " << lapse << endl;
+            }
+            last_pts = curr_pts;
+            */
+
+            return best_frame;
         }
         else
         {

@@ -14,9 +14,9 @@ GPC_AV_NAMESPACE_START
 */
 class FrameBase {
 public:
-    typedef std::chrono::time_point<std::chrono::microseconds> timepoint_t;
+    //typedef std::chrono::time_point<std::chrono::microseconds> timepoint_t;
 
-    auto presentation_timestamp() -> int64_t; // in x/time_base (time_base defined in Stream)
+    auto presentation_timestamp() const -> int64_t; // in x/time_base (time_base defined in Stream)
 
 protected:
     FrameBase();

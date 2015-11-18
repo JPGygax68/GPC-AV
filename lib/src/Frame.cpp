@@ -52,12 +52,14 @@ FrameBase::FrameBase(FrameBase&& from)
 
 FrameBase::FrameBase(const FrameBase& from)
 {
+    //assert(from.frame->buf[0]);
     frame = _av(av_frame_clone, from.frame);
     //increment_clones();
 }
 
 void FrameBase::assign(const FrameBase &from)
 {
+    assert(from.frame->buf[0]);
     frame = _av(av_frame_clone, from.frame);
     //increment_clones();
 }
@@ -82,9 +84,10 @@ FrameBase::~FrameBase()
     //increment_frees();
 }
 
-auto FrameBase::presentation_timestamp() -> int64_t
+auto FrameBase::presentation_timestamp() const -> int64_t
 {
-    return frame->pts;
+    //return frame->pts != INT64_MIN ? frame->pts : frame->pkt_pts;
+    return av_frame_get_best_effort_timestamp(frame);
 }
 
 GPC_AV_NAMESPACE_END

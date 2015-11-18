@@ -14,6 +14,7 @@ set(SOURCE_FILES
   "src/VideoFrame.cpp"
   "src/Rational.cpp"
   "src/opengl/YUVPainter.cpp"
+  "src/HighResClock.cpp"
   "include/gpc/_av/internal/Decoder.ipp"
 )
 
@@ -34,6 +35,7 @@ set(HEADER_FILES
   "include/gpc/_av/Frame.hpp"
   "include/gpc/_av/VideoFrame.hpp"
   "include/gpc/_av/Rational.hpp"
+  "include/gpc/_av/internal/HighResClock.hpp"
   "include/gpc/_av/opengl/YUVPainter.hpp"
   "include/gpc/Rational.hpp"  # TODO: move into its own library
   "src/checked_calls.hpp"

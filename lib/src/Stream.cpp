@@ -17,7 +17,8 @@ auto Stream::media_type() const -> MediaType
 
 auto Stream::time_base() const -> Rational
 {
-    return Rational(stream->time_base.num, stream->time_base.den);
+    //return Rational(stream->codec->time_base.num, stream->codec->time_base.den);
+    return Rational { stream->time_base.num, stream->time_base.den };
 }
 
 GPC_AV_NAMESPACE_END

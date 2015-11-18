@@ -42,7 +42,7 @@ namespace gl {
             vertex, both vertex and texture coordinates must be provided: vertex as 4 floats,
             texture as 2 floats.
          */
-        void load_frame(const Frame &);
+        void prepare_frame(const Frame &, bool load_image = true);
 
         void set_modelview_matrix (const float *matrix);
 

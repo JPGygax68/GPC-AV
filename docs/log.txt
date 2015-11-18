@@ -1,3 +1,21 @@
+2015-11-18
+==========
+
+After spending two days debugging looking for the reason why video playback was stuttering, I finally tried out a new version of the FFmpeg libraries and hey, problem gone.
+
+While debugging though, I found out that contrary to my belief, my AVFrames are *not* reference counted. According to the documentation, this means that every cloning operation will actually copy the data. If that is true, it's not good at all. What I'd like to know is whether there is a way to force frames to be ref counted. Also, it may be a good idea to check the behavior by stepping into the code - this means I'll have to rebuild the Shift Media Project.
+
+If that somehow does not work, I'd have to re-implement my wrapper class hierarchy so that it does the reference counting itself.
+
+A few observations:
+
+- Playback is still not perfectly smooth when the console window is "below" the display window. This likely has to do with the way Windows synchronizes the presentation of changes across multiple windows.
+  [Solved (for now): when the console window is brought to the foreground, or moved to the other screen, video display becomes smooth.]
+  
+- Colors are less saturated than with VLC. This is probably due to my color space conversion formulae. I should try some of the alternatives, and also have a look at that article I saw but didn't read in a recent issue of C't magazine.
+
+- Video upscaling is not smooth. I'll have to see whether that requires work in the shader or can be done with a simple texture setting. [Done - all that was needed was to set the min and mag filters to GL_LINEAR]
+
 2015-11-13
 ==========
 
