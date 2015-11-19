@@ -142,8 +142,11 @@ namespace gl {
         for (int i = 0; i < 3; i++)
         {
             EXEC_GL(glActiveTexture, GL_TEXTURE0 + i);
+            EXEC_GL(glBindTexture, GL_TEXTURE_2D, 0);
             EXEC_GL(glDisable, GL_TEXTURE_2D);
         }
+
+        EXEC_GL(glActiveTexture, GL_TEXTURE0);
     }
 
     void YUVPainter::Impl::set_modelview_matrix(const float * matrix)
