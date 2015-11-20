@@ -1,3 +1,9 @@
+2015-11-19
+==========
+
+- av_compare_ts(): does the same (hopefully) as my Rational class comparison operators
+
+
 2015-11-18
 ==========
 

@@ -1,6 +1,7 @@
 #pragma once
 
-#include "Rational.hpp"
+#include <gpc/Rational.hpp>
+
 #include "MediaType.hpp"
 
 #include "config.hpp"
@@ -19,13 +20,17 @@ GPC_AV_NAMESPACE_START
     Note: in a future extension, this class might also encompass a Demuxer reference or
         pointer, so that user code may subscribe for packet delivery via the stream
         rather than go back to the demuxer. However, Stream will remain a thin wrapper
-        class, and thus the actual pub/sub mechanism shall be kept in Demuxer, with
-        Stream acting as a delegator.
+        class, and thus the actual pub/sub mechanism would still be kept in Demuxer, 
+        with Stream acting as a delegator.
  */
 class Stream {
 public:
+    typedef ::gpc::Rational<int> timebase_t;
+
+    auto index() const -> int;
     auto media_type() const -> MediaType;
-    auto time_base() const -> Rational;
+    auto time_base(const timebase_t &) -> Stream&;
+    auto time_base() const -> timebase_t;
 
 protected:
 

@@ -1,11 +1,11 @@
 project("libGPC-AVpp")
 
 set(SOURCE_FILES 
-  "src/av.cpp"
-  "src/player.cpp"
+  "src/CodecIDs.cpp"
+  "src/Player.cpp"
   "src/Demuxer.cpp" 
   "src/Stream.cpp"
-  "src/Packet.cpp"
+  #"src/Packet.cpp"
   "src/VideoStream.cpp"
   "src/VideoDecoder.cpp"
   "src/DecoderBase.cpp" 
@@ -23,11 +23,12 @@ set(HEADER_FILES
   "include/gpc/av" 
   "include/gpc/av.hpp"
   "include/gpc/_av/MediaType.hpp"
+  "include/gpc/_av/CodecIDs.hpp"
   "include/gpc/_av/config.hpp"
   "include/gpc/_av/Player.hpp"
   "include/gpc/_av/Demuxer.hpp"
   "include/gpc/_av/Stream.hpp"
-  "include/gpc/_av/Packet.hpp"
+  #"include/gpc/_av/Packet.hpp"
   "include/gpc/_av/VideoStream.hpp"
   "include/gpc/_av/internal/Decoder.hpp"
   "include/gpc/_av/internal/Decoder_Impl.hpp"
@@ -39,6 +40,7 @@ set(HEADER_FILES
   "include/gpc/_av/internal/HighResClock.hpp"
   "include/gpc/_av/opengl/YUVPainter.hpp"
   "include/gpc/_av/Muxer.hpp"
+  "include/gpc/_av/common.hpp"
   "include/gpc/Rational.hpp"  # TODO: move into its own library
   "src/checked_calls.hpp"
 )

@@ -20,34 +20,11 @@
 #ifndef DONT_USE_GPC_AV_MUXER
 #include "_av/Muxer.hpp"
 #endif
+#ifndef DONT_USE_GPC_AV_VIDEOSTREAM
+#include "_av/VideoStream.hpp"
+#endif
 #ifdef USE_GPC_AV_OPENGL
 #include "_av/opengl/YUVPainter.hpp" // TODO: this should become a separate library
 #endif
 
 #include "_av/config.hpp"
-
-GPC_AV_NAMESPACE_START
-    
-// TODO: remove? or move to separate header file ?
-
-class Source {
-public:
-
-    Source();
-    Source(Source&& orig);
-    ~Source();
-
-    void open(const std::string &url);
-
-    /* Open a source by its URL.
-        */
-    static auto create(const std::string &url) -> Source;
-
-private:
-
-    struct Private;
-
-    std::unique_ptr<Private>    p;
-};
-
-GPC_AV_NAMESPACE_END

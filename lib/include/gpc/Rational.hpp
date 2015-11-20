@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <ostream>
 #include <array>
+#include <type_traits>
 
 namespace gpc {
 
@@ -12,8 +13,16 @@ namespace gpc {
 
         Rational(Int num_ = static_cast<Int>(0), Int den_ = static_cast<Int>(1)) : num(num_), den(den_) {}
 
-        template <typename Duration>
-        Rational(const Duration &dur) : num(dur.count()), den(Duration::period::den) {}
+        template <typename IntOther, bool = std::is_integral<IntOther>::value>
+        Rational(const Rational<IntOther> &from):
+            num(static_cast<Int>(from.numerator())),
+            den(static_cast<Int>(from.denominator()))
+        {}
+
+        template <typename Duration, typename = Duration::period>
+        Rational(const Duration &dur): 
+            num(dur.count()), den(Duration::period::den) 
+        {}
 
         auto operator = (const Rational &from)
         {
@@ -61,6 +70,10 @@ namespace gpc {
             return num * op2.den != op2.num * den;
         }
 
+        Int numerator() const { return num; }
+
+        Int denominator() const { return den; }
+
     private:
 
         auto reduce() -> Rational&
@@ -100,18 +113,24 @@ namespace gpc {
         Int num, den;
     };
 
+    // TODO: replace this with automatic conversion from int to Rational<>
+
+    template <typename Int1, typename Int2, 
+        bool = std::is_integral<Int1>::value, 
+        bool = std::is_integral<Int2>::value,
+        typename Int = std::common_type<Int1, Int2>::type
+    >
+    auto operator * (Int1 op1, const Rational<Int2> &op2) -> Rational<Int>
+    {
+        return Rational<Int>(op1) * Rational<Int>(op2);
+    }
+
     template <typename Int>
     std::ostream& operator << (std::ostream &os, const Rational<Int> &r)
     {
         os << r.num << "/" << r.den;
 
         return os;
-    }
-
-    template <typename Int>
-    auto operator * (Int op1, const Rational<Int> &op2) -> Rational<Int>
-    {
-        return Rational<Int>(op1) * op2;
     }
 
 } // ns gpc

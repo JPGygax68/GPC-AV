@@ -14,7 +14,7 @@ extern "C" {
 #include "checked_calls.hpp"
 
 #include <gpc/_av/config.hpp>
-#include <gpc/_av/Packet.hpp>
+//#include <gpc/_av/Packet.hpp>
 #include <gpc/_av/VideoDecoder.hpp>
 #include <gpc/_av/VideoStream.hpp>
 
@@ -285,7 +285,7 @@ void Demuxer::Impl::reader_loop()
         //uint8_t buffer[INBUF_SIZE + FF_INPUT_BUFFER_PADDING_SIZE];
         //memset(buffer + INBUF_SIZE, 0, FF_INPUT_BUFFER_PADDING_SIZE);
 
-        deque<Packet> packet_queue;
+        deque<AVPacket> packet_queue;
         bool playing = false; // TODO: make this publicly readable ? (like reader_eos)
         reader_eos = false;
 
@@ -296,7 +296,7 @@ void Demuxer::Impl::reader_loop()
                 reader_state = OBTAINING_DATA;    // TODO: define and use set_state() ?
 
                 packet_queue.emplace_back();
-                int err = av_read_frame(format_context, &packet_queue.back().av_pkt);
+                int err = av_read_frame(format_context, &packet_queue.back());
                 if (err < 0)
                 {
                     cerr << "Demuxer (reader thread): end of file/stream or error, terminating" << endl;
@@ -318,12 +318,12 @@ void Demuxer::Impl::reader_loop()
                     reader_state = PROCESSING_DATA; // TODO: define and use set_state() ?
 
                     auto &packet = packet_queue.front();
-                    auto stream = format_context->streams[packet.av_pkt.stream_index];
+                    auto stream = format_context->streams[packet.stream_index];
 
                     bool got_frame = false;
                     if (stream->codec->codec_type == AVMEDIA_TYPE_VIDEO)
                     {
-                        got_frame = vid_dec.decode_packet(&packet.av_pkt); // TODO: call impl directly ?                                                                            // TODO: use Packet wrapper
+                        got_frame = vid_dec.decode_packet(&packet); // TODO: call impl directly ?                                                                            // TODO: use Packet wrapper
                     }
                     // TODO: other packet types
 

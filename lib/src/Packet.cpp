@@ -8,9 +8,11 @@ extern "C" {
 
 GPC_AV_NAMESPACE_START
 
-Packet::Packet()
+Packet::Packet(AVPacket &pkt): av_pkt(pkt)
 {
     av_init_packet(&av_pkt);
+
+    av_pkt.stream_index = stream_index;
 }
 
 Packet::~Packet()
