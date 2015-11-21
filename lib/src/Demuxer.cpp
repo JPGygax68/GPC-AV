@@ -264,13 +264,13 @@ void Demuxer::Impl::resume()
 
     // cout << "Demuxer: resuming..." << endl;
 
-    //unique_lock<mutex> lk(reader_mutex);
+    unique_lock<mutex> lk(reader_mutex);
 
     assert(reader_state == SUSPENDED);
 
     reader_command = RESUME;
     command_posted.notify_one();
-    //command_executed.wait(lk, [this]() { return reader_state != SUSPENDED; });
+    command_executed.wait(lk, [this]() { return reader_state != SUSPENDED; });
 
     //cout << "Demuxer: resumed." << endl;
 }

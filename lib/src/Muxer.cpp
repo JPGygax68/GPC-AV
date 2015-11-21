@@ -30,7 +30,7 @@ struct Muxer::Impl {
     void add_video_stream(CodecID, int width, int height);
     auto video_stream() -> VideoStream;
     void write_header();
-    void send_packet(int stream_index, const uint8_t * data, int size, bool keyframe,
+    void send_packet(int stream_index, const uint8_t * data, int size,
         int64_t pts, int64_t dts, int duration, int pos);
     void send_h264_hevc(int stream_index, const uint8_t * data, int size, int64_t pts, int64_t dts, int duration);
 
@@ -71,10 +71,10 @@ void Muxer::write_header()
     p()->write_header();
 }
 
-void Muxer::send_packet(int stream_index, const uint8_t * data, int size, bool keyframe,
+void Muxer::send_packet(int stream_index, const uint8_t * data, int size, 
     int64_t pts, int64_t dts, int duration, int pos)
 {
-    p()->send_packet(stream_index, data, size, keyframe, pts, dts, duration, pos);
+    p()->send_packet(stream_index, data, size, pts, dts, duration, pos);
 }
 
 void Muxer::send_h264_hevc(int stream_index, const uint8_t * data, int size, int64_t pts, int64_t dts, int duration)
@@ -172,7 +172,7 @@ void Muxer::Impl::write_header()
     _av(avformat_write_header, format_ctx, nullptr);
 }
 
-void Muxer::Impl::send_packet(int stream_index, const uint8_t * data, int size, bool keyframe, 
+void Muxer::Impl::send_packet(int stream_index, const uint8_t * data, int size,
     int64_t pts, int64_t dts, int duration, int pos)
 {
     AVPacket pkt;
@@ -192,6 +192,7 @@ void Muxer::Impl::send_packet(int stream_index, const uint8_t * data, int size, 
 
 void Muxer::Impl::send_h264_hevc(int stream_index, const uint8_t * data, int size, int64_t pts, int64_t dts, int duration)
 {
+#ifdef IF_WE_HAD_TO_PACKETIZE_OURSELVES_BUT_WE_DONT
     static const uint8_t RTP_VERSION = 2;
 
     for (auto pnalu = data; pnalu < data + size; ) 
@@ -209,7 +210,7 @@ void Muxer::Impl::send_h264_hevc(int stream_index, const uint8_t * data, int siz
         while (*ppl++ == 0);
         uint8_t nal_unit_type = *ppl & 0x1f;
         assert(nal_unit_type == 1 || (nal_unit_type >= 5 && nal_unit_type <= 23)); // single NAL packets only!
-        pnalu = ppl;
+        //pnalu = ppl;
         int nalsz = pend - pnalu;
 
         // Packetize NALU
@@ -220,7 +221,7 @@ void Muxer::Impl::send_h264_hevc(int stream_index, const uint8_t * data, int siz
         int i = 0;
         *((uint32_t*)&buf[i]) = htonl(pklen);   // packet length
         i += 4;
-        *((int32_t*)&buf[i]) = -1;  // "in time"
+        *((int32_t*)&buf[i]) = htonl(-1);  // "in time"
         i += 4;
 
         // RTP header (RFC 6184): 12 bytes
@@ -266,10 +267,14 @@ void Muxer::Impl::send_h264_hevc(int stream_index, const uint8_t * data, int siz
         //for (int i = 0; i < nalsz; i ++) buf[15+i] = ppl[i];
 
         // Send the NALU
-        send_packet(video_stream().index(), &buf[0], buf.size(), nal_unit_type == 5, pts, dts, duration, -1);
+        //send_packet(video_stream().index(), &buf[0], buf.size(), nal_unit_type == 5, pts, dts, duration, -1);
+        send_packet(video_stream().index(), pnalu, pend - pnalu, nal_unit_type == 5, pts, dts, duration, -1);
 
         pnalu = pend; // on to the next NAL unit
     }
+#else
+    send_packet(video_stream().index(), data, size, pts, dts, duration, -1);
+#endif
 }
 
 GPC_AV_NAMESPACE_END

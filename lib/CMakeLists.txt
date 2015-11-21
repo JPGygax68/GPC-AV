@@ -3,6 +3,7 @@ project("libGPC-AVpp")
 set(SOURCE_FILES 
   "src/CodecIDs.cpp"
   "src/Player.cpp"
+  "src/Server.cpp"
   "src/Demuxer.cpp" 
   "src/Stream.cpp"
   #"src/Packet.cpp"
@@ -26,6 +27,7 @@ set(HEADER_FILES
   "include/gpc/_av/CodecIDs.hpp"
   "include/gpc/_av/config.hpp"
   "include/gpc/_av/Player.hpp"
+  "include/gpc/_av/Server.hpp"
   "include/gpc/_av/Demuxer.hpp"
   "include/gpc/_av/Stream.hpp"
   #"include/gpc/_av/Packet.hpp"

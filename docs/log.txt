@@ -1,6 +1,12 @@
 2015-11-19
 ==========
 
+- The FFmpeg modules define accessor functions for public fields. The only advantage they offer over direct access is that the containing struct need not be imported.
+
+
+2015-11-19
+==========
+
 - av_compare_ts(): does the same (hopefully) as my Rational class comparison operators
 
 

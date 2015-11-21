@@ -27,7 +27,7 @@ public:
 
     void write_header();
 
-    void send_packet(int stream_index, const uint8_t *data, int size, bool keyframe,
+    void send_packet(int stream_index, const uint8_t *data, int size, 
         int64_t pts, int64_t dts = NOPTS, int duration = 0, int pos = -1);
 
     void send_h264_hevc(int stream_index, const uint8_t *data, int size, int64_t pts, int64_t dts = NOPTS, int duration = 0);
