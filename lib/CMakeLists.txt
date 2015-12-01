@@ -86,29 +86,47 @@ endforeach()
 
 # DEPENDENCIES -------------------------------------------------------
 
-find_library(avformat_LIB avformat)
-find_path(avformat_INCLUDE libavformat/avformat.h)
-find_library(avcodec_LIB avcodec)
-find_path(avcodec_INCLUDE libavcodec/avcodec.h)
-find_library(avutil_LIB avutil)
-find_path(avutil_INCLUDE libavutil/avutil.h)
-find_library(swscale_LIB swscale)
-find_path(swscale_INCLUDE libswscale/swscale.h)
+# FFmpeg
 
-target_link_libraries(${PROJECT_NAME} PUBLIC ${avformat_LIB} ${avcodec_LIB} ${avutil_LIB} ${swscale_LIB})
-target_include_directories(${PROJECT_NAME} PRIVATE ${avformat_INCLUDE} ${avcodec_INCLUDE} ${avutil_INCLUDE} ${swscale_INCLUDE})
+foreach (lib "avformat" "avcodec" "avutil" "swscale")
+
+	# Library files
+	find_library(${lib}_LIB_RELEASE "${lib}")
+	if (NOT ${lib}_LIB_RELEASE)
+		message(FATAL_ERROR "Could not find release version of library \"${lib}\"")
+	endif()
+	find_library(${lib}_LIB_DEBUG "${lib}")
+	if (NOT ${lib}_LIB_DEBUG)
+		message(FATAL_ERROR "Could not find debug version of library \"${lib}\"")
+	endif()
+	target_link_libraries(${PROJECT_NAME} PUBLIC 
+		$<$<CONFIG:Release>:${${lib}_LIB_RELEASE}>
+		$<$<CONFIG:Debug>:${${lib}_LIB_DEBUG}>
+	)
+
+	# Header file
+	find_path(${lib}_INCLUDE "lib${lib}/${lib}.h")
+	if (NOT ${lib}_INCLUDE)
+		message(FATAL_ERROR "Could not find header file of library \"${lib}\"")
+	endif()
+	target_include_directories(${PROJECT_NAME} PRIVATE ${${lib}_INCLUDE})
+	
+endforeach()
+
+# The following is said to be no longer needed with C++11, which unfortunately
+# CMake expressely refuses to detect as such (only individual features) are 
+# detected)
 target_compile_definitions(${PROJECT_NAME} PRIVATE __STDC_CONSTANT_MACROS)
 
-# The following does not work: the dependee must set the /SAFESEH:NO linker flag itself.
+# If the following does not propagate as it should, the consumer must set the "/SAFESEH:NO" setting by itself
 if (MSVC)
-  set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SAFESEH:NO")
-  set (CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /SAFESEH:NO")
-  set (CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} /SAFESEH:NO")
+    target_link_libraries(${PROJECT_NAME} PUBLIC "-SAFESEH:NO")
 endif()
 
 # OpenGL bindings
 find_package(glbinding REQUIRED)
 target_link_libraries(${PROJECT_NAME} PRIVATE ${GLBINDING_LIBRARIES})
+target_include_directories(${PROJECT_NAME} PRIVATE ${GLBINDING_INCLUDE_DIR})
 target_compile_definitions(${PROJECT_NAME} PRIVATE GLBINDING_STATIC)
 
 # GPC GL utilities

@@ -25,6 +25,7 @@ GPC_AV_NAMESPACE_START
 
 struct Muxer::Impl {
 
+    void set_format(const std::string short_name);
     void open(const std::string &url);
     void close();
     void add_video_stream(CodecID, int width, int height);
@@ -32,8 +33,10 @@ struct Muxer::Impl {
     void write_header();
     void send_packet(int stream_index, const uint8_t * data, int size,
         int64_t pts, int64_t dts, int duration, int pos);
-    void send_h264_hevc(int stream_index, const uint8_t * data, int size, int64_t pts, int64_t dts, int duration);
+    void send_h264_hevc(int stream_index, const uint8_t * data, int size, 
+        int64_t pts, int64_t dts, int duration);
 
+    AVOutputFormat     *output_format = nullptr;
     AVFormatContext    *format_ctx = nullptr;
     AVStream           *video_st = nullptr;
     uint32_t            seq = 0; // for RTP
@@ -50,6 +53,11 @@ Muxer::Muxer():
 
 Muxer::~Muxer()
 {}
+
+void Muxer::set_format(const std::string & short_name)
+{
+    p()->set_format(short_name);
+}
 
 void Muxer::open(const std::string & url)
 {
@@ -92,6 +100,7 @@ void Muxer::close()
 /*
 * Find next NAL unit from the specified H.264 bitstream data.
 */
+// TODO: remove, this is not needed - FFmpeg does all this for us
 static auto find_next_nal_unit(const uint8_t *start, const uint8_t *end) -> const uint8_t *
 {
     const uint8_t *p = start;
@@ -113,6 +122,11 @@ static auto find_next_nal_unit(const uint8_t *start, const uint8_t *end) -> cons
 
 // INTERNAL IMPLEMENTATION (PIMPL) ----------------------------------
 
+void Muxer::Impl::set_format(const std::string short_name)
+{
+    output_format = _av(av_guess_format, short_name.c_str(), nullptr, nullptr);
+}
+
 void Muxer::Impl::open(const std::string &url)
 {
     using std::copy;
@@ -120,7 +134,19 @@ void Muxer::Impl::open(const std::string &url)
 
     // Should work for both URLs and filesystem paths:
     string protocol(begin(url), begin(url) + url.find(':'));
-    auto output_format = protocol.empty() ? nullptr :_av(av_guess_format, protocol.c_str(), nullptr, nullptr);
+
+    // Guess output format (if not already set)
+    if (!output_format)
+    {
+        if (!protocol.empty())
+        {
+            // TODO: parse to extract filename
+            output_format = av_guess_format(protocol.c_str(), nullptr, nullptr);
+        }
+        else {
+            output_format = nullptr;
+        }
+    }
 
     _av(avformat_alloc_output_context2, &format_ctx, output_format, nullptr, url.c_str());
 

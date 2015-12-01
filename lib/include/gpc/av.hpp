@@ -10,8 +10,11 @@
 #include "_av/VideoDecoder.hpp"
 #include "_av/VideoFrame.hpp"
 #endif
-#ifndef DONT_USE_GPC_AV_VIDEO_PLAYER
+#ifndef DONT_USE_GPC_AV_PLAYER
 #include "_av/Player.hpp"
+#endif
+#ifndef DONT_USE_GPC_AV_SERVER
+#include "_av/Server.hpp"
 #endif
 #ifndef DONT_USE_GPC_AV_FRAME
 // TODO: separate classes for video and audio, which get included automatically as required ?

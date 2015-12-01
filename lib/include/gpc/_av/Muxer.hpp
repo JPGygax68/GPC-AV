@@ -19,6 +19,8 @@ public:
     Muxer();
     ~Muxer();
 
+    void set_format(const std::string &short_name);
+
     void open(const std::string &url);
 
     void add_video_stream(CodecID, int width, int height);
