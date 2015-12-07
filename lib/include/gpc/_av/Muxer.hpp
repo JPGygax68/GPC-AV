@@ -25,6 +25,8 @@ public:
 
     void add_video_stream(CodecID, int width, int height);
 
+    auto get_sdp_data() -> std::string;
+
     auto video_stream() -> VideoStream;
 
     void write_header();

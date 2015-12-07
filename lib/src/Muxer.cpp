@@ -28,6 +28,7 @@ struct Muxer::Impl {
     void set_format(const std::string short_name);
     void open(const std::string &url);
     void close();
+    auto get_sdp_data() -> std::string;
     void add_video_stream(CodecID, int width, int height);
     auto video_stream() -> VideoStream;
     void write_header();
@@ -67,6 +68,11 @@ void Muxer::open(const std::string & url)
 void Muxer::add_video_stream(CodecID codec_id, int width, int height)
 {
     p()->add_video_stream(codec_id, width, height);
+}
+
+auto Muxer::get_sdp_data() -> std::string
+{
+    return p()->get_sdp_data();
 }
 
 auto Muxer::video_stream() -> VideoStream
@@ -162,6 +168,15 @@ void Muxer::Impl::open(const std::string &url)
 
 void Muxer::Impl::close()
 {
+}
+
+auto Muxer::Impl::get_sdp_data() -> std::string
+{
+    char buffer[4096];
+
+    int err = av_sdp_create(&format_ctx, 1, buffer, 4096);
+    auto size = strnlen(buffer, 4096);
+    return std::string(buffer, size);
 }
 
 void Muxer::Impl::add_video_stream(CodecID codec_id, int width, int height)
