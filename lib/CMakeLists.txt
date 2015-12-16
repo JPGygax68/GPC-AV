@@ -1,4 +1,4 @@
-project("libGPC-AVpp")
+project(libGPCAVpp)
 
 set(SOURCE_FILES 
   "src/CodecIDs.cpp"
@@ -47,9 +47,9 @@ set(HEADER_FILES
   "src/checked_calls.hpp"
 )
 
-add_library("libGPC-AVpp" STATIC ${SOURCE_FILES} ${HEADER_FILES})
+add_library(${PROJECT_NAME} STATIC ${SOURCE_FILES} ${HEADER_FILES})
 
-target_include_directories("libGPC-AVpp" BEFORE
+target_include_directories(${PROJECT_NAME} BEFORE
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     #$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/generated>
@@ -80,8 +80,8 @@ foreach(shader ${SHADER_FILES})
     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${shader}
     COMMAND GPCBin2C --input=${CMAKE_CURRENT_SOURCE_DIR}/${shader} --output=${shader_header}
   )
-  target_sources("libGPC-AVpp" PRIVATE ${SHADER_FILES} )
-  target_sources("libGPC-AVpp" PRIVATE ${shader_header})
+  target_sources(${PROJECT_NAME} PRIVATE ${SHADER_FILES} )
+  target_sources(${PROJECT_NAME} PRIVATE ${shader_header})
 endforeach()
 
 # DEPENDENCIES -------------------------------------------------------
@@ -123,11 +123,17 @@ if (MSVC)
     target_link_libraries(${PROJECT_NAME} PUBLIC "-SAFESEH:NO")
 endif()
 
-# OpenGL bindings
-find_package(glbinding REQUIRED)
-target_link_libraries(${PROJECT_NAME} PRIVATE ${GLBINDING_LIBRARIES})
-target_include_directories(${PROJECT_NAME} PRIVATE ${GLBINDING_INCLUDE_DIR})
-target_compile_definitions(${PROJECT_NAME} PRIVATE GLBINDING_STATIC)
+# GLBinding (OpenGL bindings)
+if (TARGET GLBinding)
+    target_link_libraries(${PROJECT_NAME} PRIVATE GLBinding)
+else()
+    find_package(GLBinding REQUIRED)
+    target_include_directories(${PROJECT_NAME} PRIVATE ${GLBINDING_INCLUDE_DIR})
+    target_link_libraries(${PROJECT_NAME} PRIVATE 
+        $<$<CONFIG:release>:${GLBINDING_LIBRARIES}>
+        $<$<CONFIG:debug>:${GLBINDING_DEBUG_LIBRARIES}>)
+    #target_compile_definitions(${PROJECT_NAME} PRIVATE GLBINDING_STATIC)
+endif()
 
 # GPC GL utilities
 find_package(libGPCGLUtils REQUIRED)
@@ -135,14 +141,16 @@ target_link_libraries(${PROJECT_NAME} PRIVATE libGPCGLUtils)
 
 # GPC GL Wrappers
 # TODO: this should get pulled in automatically by GPC GL Utils, but there is a problem with CMake there
-find_package(libGPCGLWrappers REQUIRED)
+if (NOT TARGET libGPCGLWrappers)
+  find_package(libGPCGLWrappers CONFIG REQUIRED)
+endif()
 get_target_property(libGPCGLWrappers_INCLUDE_DIRECTORIES libGPCGLWrappers INTERFACE_INCLUDE_DIRECTORIES)
 target_include_directories(${PROJECT_NAME} PRIVATE "${libGPCGLWrappers_INCLUDE_DIRECTORIES}")
 
 # EXPORT && INSTALLATION --------------------------------------------
 
-export(TARGETS "libGPC-AVpp"  FILE "${PROJECT_NAME}-targets.cmake")
-configure_file("libGPC-AVpp-config.cmake.in" "libGPC-AVpp-config.cmake" @ONLY)
-export(PACKAGE "libGPC-AVpp")
+export(TARGETS ${PROJECT_NAME}  FILE "${PROJECT_NAME}-targets.cmake")
+configure_file("PROJECT-config.cmake.in" "${PROJECT_NAME}-config.cmake" @ONLY)
+export(PACKAGE ${PROJECT_NAME})
 
 # TODO: install

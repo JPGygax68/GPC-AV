@@ -6,6 +6,13 @@ extern "C" {
 #include "libavutil/pixfmt.h"
 }
 
+#pragma warning(push)
+#pragma warning(disable: 4251)
+#include <glbinding/gl/gl.h>
+#include <glbinding/Binding.h>
+#pragma warning(pop)
+using namespace gl;
+
 #include <gpc/gl/shader_program.hpp>
 #include <gpc/gl/uniform.hpp>
 
