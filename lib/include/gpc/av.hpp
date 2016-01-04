@@ -3,6 +3,8 @@
 #include <memory>
 #include <string>
 
+#include "_av/config.hpp"
+
 #ifndef DONT_USE_GPC_AV_DEMUXER
 #include "_av/Demuxer.hpp"
 #endif
@@ -29,5 +31,3 @@
 #ifdef USE_GPC_AV_OPENGL
 #include "_av/opengl/YUVPainter.hpp" // TODO: this should become a separate library
 #endif
-
-#include "_av/config.hpp"

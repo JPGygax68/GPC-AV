@@ -31,7 +31,7 @@ struct Demuxer::Impl {
     static const size_t INITIAL_PACKET_QUEUE_SIZE = 150; // FOR STORAGE-BASED STREAMS ONLY!
 
     enum ReaderCommand { NOP = 0, SUSPEND, RESUME, TERMINATE };
-    enum ReaderState { UNDEFINED = 0, OBTAINING_DATA, PROCESSING_DATA, DELIVERING_DATA, SUSPENDED, TERMINATED };
+    enum ReaderState { NOT_STARTED = 0, OBTAINING_DATA, PROCESSING_DATA, DELIVERING_DATA, SUSPENDED, TERMINATED };
 
     AVFormatContext                *format_context;
     AVStream                       *video_stream;
@@ -183,6 +183,9 @@ Demuxer::Impl::~Impl()
 
 void Demuxer::Impl::open(const std::string &url)
 {
+    // TODO: implement a timeout
+    // TODO: move this into reader thread ?
+
     assert(!format_context);
 
     _av(avformat_open_input, &format_context, url.c_str(), nullptr, nullptr); // TODO: support options in last parameter
@@ -196,14 +199,17 @@ void Demuxer::Impl::start()
 
 void Demuxer::Impl::stop()
 {
-    if (reader_state != TERMINATED)
+    if (reader_thread)
     {
-        unique_lock<mutex> lk(reader_mutex);
-        reader_command = TERMINATE;
-        command_posted.notify_one();
-        lk.unlock();
-        reader_thread->join();
-        reader_thread.reset();
+        if (reader_state != TERMINATED)
+        {
+            unique_lock<mutex> lk(reader_mutex);
+            reader_command = TERMINATE;
+            command_posted.notify_one();
+            lk.unlock();
+            reader_thread->join();
+            reader_thread.reset();
+        }
     }
 }
 
@@ -338,7 +344,9 @@ void Demuxer::Impl::reader_loop()
                             //cerr << "Demuxer (reader thread): entering SUSPENDED state" << endl; // TODO: use log
 
                             reader_state = SUSPENDED; // TODO: notifications ?
-                            command_posted.wait(lk, [this]() { return reader_command == RESUME || reader_command == TERMINATE; });
+                            command_posted.wait(lk, [this]() { 
+                                return reader_command == RESUME || reader_command == TERMINATE; 
+                            });
 
                             if (reader_command == TERMINATE) break;
 

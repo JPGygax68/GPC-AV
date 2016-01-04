@@ -1,7 +1,5 @@
 #pragma once
 
-#include <ostream>
-
 #include <gpc/Rational.hpp>
 
 #include "config.hpp"

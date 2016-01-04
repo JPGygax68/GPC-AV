@@ -22,14 +22,17 @@ namespace gl {
         YUVPainter();
         ~YUVPainter();
 
-        /** Call this when the OpenGL context that will be used when painting is active
-            (typically right after you've created it.
+        /**  video_format must be AV_PIX_FMT_YUV420P or AV_PIX_FMT_YUVJ420P
          */
-        void initialize(int format, const Size &size);
+        void get_resources(int video_format);
 
-        /** The OpenGL context must also be active when cleaning up.
-         */
-        void cleanup();
+        void free_resources();
+
+        void set_frame_size(const Size &);
+
+        void upload_frame(const Frame &);
+
+        auto fragment_shader() -> GLuint;
 
         /** This will not only upload the Y, U and V planes into their respective textures
             (allocated and initialized by the initialize() call), but also select the yuv painter
@@ -42,7 +45,7 @@ namespace gl {
             vertex, both vertex and texture coordinates must be provided: vertex as 4 floats,
             texture as 2 floats.
          */
-        void prepare_frame(const Frame &, bool load_image = true);
+        //void prepare_frame(const Frame &, bool load_image = true);
 
         void set_modelview_matrix (const float *matrix);
 

@@ -2,6 +2,7 @@
 
 #include <memory>
 #include "config.hpp"
+
 #include "internal/Decoder.hpp"
 
 GPC_AV_NAMESPACE_START
@@ -18,8 +19,6 @@ public:
     ~VideoDecoder();
     VideoDecoder(VideoDecoder&&);
     VideoDecoder& operator = (VideoDecoder&&);
-
-protected:
 
 private: // Interface with Demuxer class
     

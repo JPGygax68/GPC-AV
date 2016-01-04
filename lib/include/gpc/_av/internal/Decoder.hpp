@@ -44,6 +44,7 @@ public:
     };
 
     /** Add a sink (i.e. a frame "consumer").
+        TODO: overload that accepts a std::function<>
     */
     auto add_sink(ISink&) -> int;
 

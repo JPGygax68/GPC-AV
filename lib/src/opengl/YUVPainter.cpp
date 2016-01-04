@@ -11,8 +11,6 @@ extern "C" {
 #include <glbinding/gl/gl.h>
 #include <glbinding/Binding.h>
 #pragma warning(pop)
-using namespace gl;
-
 #include <gpc/gl/shader_program.hpp>
 #include <gpc/gl/uniform.hpp>
 
@@ -24,17 +22,30 @@ GPC_AV_NAMESPACE_START
 
 namespace gl {
 
+    using namespace ::gl;
+
     // PIMPL DECLARATION --------------------------------------------
 
     struct YUVPainter::Impl {
-        void initialize(int format, const Size &size);
-        void cleanup();
+
+        void get_resources(int video_format);
+        void free_resources();
+
+        void set_frame_size(const Size &);
+
+        void upload_frame(const Frame&);
+
+        auto fragment_shader() { return frag_sh; }
+
+        //void initialize(int format, const Size &size);
+        //void cleanup();
+
         void prepare_frame(const Frame &, bool load_image);
         void set_modelview_matrix (const float *matrix);
         void set_projection_matrix(const float *matrix);
         void disable_texture_units();
 
-        GLuint  shader_program;
+        GLuint  frag_sh;
         GLuint  Y_tex, Cr_tex, Cb_tex;
         Size    frame_size;
     };
@@ -45,14 +56,39 @@ namespace gl {
 
     YUVPainter::~YUVPainter() = default;
 
-    void YUVPainter::initialize(int format, const Size &size) 
-    { 
-        p->initialize(format, size); 
+    void YUVPainter::get_resources(int video_format)
+    {
+        p->get_resources(video_format);
     }
 
-    void YUVPainter::cleanup() { p->cleanup(); }
+    void YUVPainter::free_resources()
+    {
+        p->free_resources();
+    }
 
-    void YUVPainter::prepare_frame(const Frame &frame, bool load_image) { p->prepare_frame(frame, load_image); }
+    void YUVPainter::set_frame_size(const Size &size)
+    {
+        p->set_frame_size(size);
+    }
+
+    void YUVPainter::upload_frame(const Frame &frame)
+    {
+        p->upload_frame(frame);
+    }
+
+    auto YUVPainter::fragment_shader() -> GLuint
+    {
+        return p->fragment_shader();
+    }
+
+    /* void YUVPainter::initialize(int format, const Size &size) 
+    { 
+        p->initialize(format, size); 
+    } */
+
+    // void YUVPainter::cleanup() { p->cleanup(); }
+
+    // void YUVPainter::prepare_frame(const Frame &frame, bool load_image) { p->prepare_frame(frame, load_image); }
 
     void YUVPainter::set_modelview_matrix(const float * matrix)
     {
@@ -71,17 +107,24 @@ namespace gl {
 
     // IMPLEMENTATION HELPERS --------------------------------------
 
-    auto makeMonoTexture(unsigned int width, unsigned int height)
+    auto make_mono_texture()
     {
         GLuint texture;
 
-        EXEC_GL(glGenTextures, 1, &texture);
-        EXEC_GL(glBindTexture, GL_TEXTURE_2D, texture);
-        EXEC_GL(glTexImage2D, GL_TEXTURE_2D, 0, (GLint) GL_LUMINANCE, width, height, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, nullptr);
-        EXEC_GL(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, (GLint) GL_LINEAR); //GL_NEAREST);
-        EXEC_GL(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, (GLint) GL_LINEAR); //GL_NEAREST);
+        GL(GenTextures, 1, &texture);
+        GL(BindTexture, GL_TEXTURE_2D, texture);
+        //GL(TexImage2D, GL_TEXTURE_2D, 0, (GLint) GL_LUMINANCE, width, height, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, nullptr);
+        // TODO: does the following work when no size has been set ?
+        GL(TexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, (GLint) GL_LINEAR); //GL_NEAREST);
+        GL(TexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, (GLint) GL_LINEAR); //GL_NEAREST);
 
         return texture;
+    }
+
+    void set_texture_size(GLuint texture, unsigned int width, unsigned int height)
+    {
+        GL(BindTexture, GL_TEXTURE_2D, texture);
+        GL(TexImage2D, GL_TEXTURE_2D, 0, (GLint)GL_LUMINANCE, width, height, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, nullptr);
     }
 
     // IMPLEMENTATION (PIMPL) ---------------------------------------
@@ -90,13 +133,13 @@ namespace gl {
         #include "vertex.glsl.h"
     };
 
-    static char fragment_shader_source[] = {
+    static char fragment_source[] = {
         #include "fragment.glsl.h"
     };
 
-    void YUVPainter::Impl::initialize(int format, const Size &size)
+    /* void YUVPainter::Impl::initialize(int format, const Size &size)
     {
-        shader_program = ::gpc::gl::buildShaderProgram(vertex_shader_source, fragment_shader_source);
+        shader_program = ::gpc::gl::buildShaderProgram(vertex_shader_source, fragment_source);
 #ifdef _DEBUG
         cerr << "YUV Painter shader program info log:" << endl << ::gpc::gl::getProgramInfoLog(shader_program) << endl;
 #endif
@@ -106,54 +149,100 @@ namespace gl {
         switch (format)
         {
         case AV_PIX_FMT_YUV420P: case AV_PIX_FMT_YUVJ420P:
-            Y_tex  = makeMonoTexture(size.w, size.h);
-            Cr_tex = makeMonoTexture(size.w / 2, size.h / 2);
-            Cb_tex = makeMonoTexture(size.w / 2, size.h / 2);
+            Y_tex  = make_mono_texture(size.w, size.h);
+            Cr_tex = make_mono_texture(size.w / 2, size.h / 2);
+            Cb_tex = make_mono_texture(size.w / 2, size.h / 2);
             break;
         default:
             throw std::runtime_error("YUVPainter.initialize: unsupported");
         }
+    } */
+
+    void YUVPainter::Impl::get_resources(int video_format)
+    {
+        frag_sh = GL(CreateShader, GL_FRAGMENT_SHADER);
+
+        gpc::gl::compileShader(frag_sh, fragment_source);
+
+        switch (video_format)
+        {
+        case AV_PIX_FMT_YUV420P: case AV_PIX_FMT_YUVJ420P:
+            Y_tex  = make_mono_texture();
+            Cr_tex = make_mono_texture();
+            Cb_tex = make_mono_texture();
+            break;
+        default:
+            throw std::runtime_error("YUVPainter.get_resources: unsupported video format");
+        }
     }
 
-    void YUVPainter::Impl::cleanup()
+    void YUVPainter::Impl::free_resources()
     {
-        EXEC_GL(glDeleteTextures, 1, &Y_tex ); Y_tex  = 0;
-        EXEC_GL(glDeleteTextures, 1, &Cr_tex); Cr_tex = 0;
-        EXEC_GL(glDeleteTextures, 1, &Cb_tex); Cb_tex = 0;
-        EXEC_GL(glDeleteProgram, shader_program); shader_program = 0;
+        GL(DeleteTextures, 1, &Y_tex); Y_tex = 0;
+        GL(DeleteTextures, 1, &Cr_tex); Cr_tex = 0;
+        GL(DeleteTextures, 1, &Cb_tex); Cb_tex = 0;
+        GL(DeleteShader, frag_sh); frag_sh = 0;
     }
 
-    void YUVPainter::Impl::prepare_frame(const Frame &frame, bool load_image) 
+    void YUVPainter::Impl::set_frame_size(const Size &size)
     {
-        EXEC_GL(glActiveTexture, GL_TEXTURE0 + 0);
-        EXEC_GL(glBindTexture, GL_TEXTURE_2D, Y_tex);
-        if (load_image) EXEC_GL(glTexSubImage2D, GL_TEXTURE_2D, 0, 0, 0, frame_size.w, frame_size.h, GL_LUMINANCE, GL_UNSIGNED_BYTE, frame.y);
+        set_texture_size(Y_tex , size.w    , size.h    );
+        set_texture_size(Cr_tex, size.w / 2, size.h / 2);
+        set_texture_size(Cb_tex, size.w / 2, size.h / 2);
 
-        EXEC_GL(glActiveTexture, GL_TEXTURE0 + 1);
-        EXEC_GL(glBindTexture, GL_TEXTURE_2D, Cb_tex);
-        if (load_image) EXEC_GL(glTexSubImage2D, GL_TEXTURE_2D, 0, 0, 0, frame_size.w / 2, frame_size.h / 2, GL_LUMINANCE, GL_UNSIGNED_BYTE, frame.u);
+        frame_size = size;
+    }
 
-        EXEC_GL(glActiveTexture, GL_TEXTURE0 + 2);
-        EXEC_GL(glBindTexture, GL_TEXTURE_2D, Cr_tex);
-        if (load_image) EXEC_GL(glTexSubImage2D, GL_TEXTURE_2D, 0, 0, 0, frame_size.w / 2, frame_size.h / 2, GL_LUMINANCE, GL_UNSIGNED_BYTE, frame.v);
+    void YUVPainter::Impl::upload_frame(const Frame &frame)
+    {
+        assert(frame_size.w != 0 && frame_size.h != 0);
 
-        EXEC_GL(glUseProgram, shader_program);
+        GL(ActiveTexture, GL_TEXTURE0 + 0);
+        GL(BindTexture, GL_TEXTURE_2D, Y_tex);
+        GL(TexSubImage2D, GL_TEXTURE_2D, 0, 0, 0, frame_size.w, frame_size.h, GL_LUMINANCE, GL_UNSIGNED_BYTE, frame.y);
+
+        GL(ActiveTexture, GL_TEXTURE0 + 1);
+        GL(BindTexture, GL_TEXTURE_2D, Cb_tex);
+        GL(TexSubImage2D, GL_TEXTURE_2D, 0, 0, 0, frame_size.w / 2, frame_size.h / 2, GL_LUMINANCE, GL_UNSIGNED_BYTE, frame.u);
+
+        GL(ActiveTexture, GL_TEXTURE0 + 2);
+        GL(BindTexture, GL_TEXTURE_2D, Cr_tex);
+        GL(TexSubImage2D, GL_TEXTURE_2D, 0, 0, 0, frame_size.w / 2, frame_size.h / 2, GL_LUMINANCE, GL_UNSIGNED_BYTE, frame.v);
+    }
+
+    /* void YUVPainter::Impl::prepare_frame(const Frame &frame, bool load_image)
+    {
+        assert(frame_size.w != 0 && frame_size.h != 0);
+
+        GL(ActiveTexture, GL_TEXTURE0 + 0);
+        GL(BindTexture, GL_TEXTURE_2D, Y_tex);
+        if (load_image) GL(TexSubImage2D, GL_TEXTURE_2D, 0, 0, 0, frame_size.w, frame_size.h, GL_LUMINANCE, GL_UNSIGNED_BYTE, frame.y);
+
+        GL(ActiveTexture, GL_TEXTURE0 + 1);
+        GL(BindTexture, GL_TEXTURE_2D, Cb_tex);
+        if (load_image) GL(TexSubImage2D, GL_TEXTURE_2D, 0, 0, 0, frame_size.w / 2, frame_size.h / 2, GL_LUMINANCE, GL_UNSIGNED_BYTE, frame.u);
+
+        GL(ActiveTexture, GL_TEXTURE0 + 2);
+        GL(BindTexture, GL_TEXTURE_2D, Cr_tex);
+        if (load_image) GL(TexSubImage2D, GL_TEXTURE_2D, 0, 0, 0, frame_size.w / 2, frame_size.h / 2, GL_LUMINANCE, GL_UNSIGNED_BYTE, frame.v);
+
+        GL(UseProgram, shader_program);
 
         ::gpc::gl::setUniform(2, 0);    // Texture unit for Y
         ::gpc::gl::setUniform(3, 1);    // Texture unit for Cr
         ::gpc::gl::setUniform(4, 2);    // Texture unit for Cb
-    }
+    } */
 
     void YUVPainter::Impl::disable_texture_units()
     {
         for (int i = 0; i < 3; i++)
         {
-            EXEC_GL(glActiveTexture, GL_TEXTURE0 + i);
-            EXEC_GL(glBindTexture, GL_TEXTURE_2D, 0);
-            EXEC_GL(glDisable, GL_TEXTURE_2D);
+            GL(ActiveTexture, GL_TEXTURE0 + i);
+            GL(BindTexture, GL_TEXTURE_2D, 0);
+            GL(Disable, GL_TEXTURE_2D);
         }
 
-        EXEC_GL(glActiveTexture, GL_TEXTURE0);
+        GL(ActiveTexture, GL_TEXTURE0);
     }
 
     void YUVPainter::Impl::set_modelview_matrix(const float * matrix)

@@ -8,7 +8,7 @@ extern "C" {
 
 GPC_AV_NAMESPACE_START
 
-auto VideoFrame::_format() const -> int
+auto VideoFrame::format() const -> int
 {
     return frame->format;
 }

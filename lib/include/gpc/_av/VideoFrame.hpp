@@ -10,9 +10,11 @@ public:
         int w, h;
     } Size;
 
-    using Frame<VideoFrame>::Frame;
+    using Frame::Frame;
+    
+    auto operator = (const VideoFrame &from) { assign(from); return *this; }
 
-    auto _format() const -> int;
+    auto format() const -> int;
 
     auto size() const -> Size;
 

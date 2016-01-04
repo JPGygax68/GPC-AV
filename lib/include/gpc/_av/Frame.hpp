@@ -42,12 +42,13 @@ template <class Class>
 class Frame: public FrameBase {
 
 public:
+    Frame() : FrameBase{} {}
     Frame(Class&& from) : FrameBase(from) {}
     Frame(const Class& from) : FrameBase(from) {}
     explicit Frame(AVFrame *av_frame) : FrameBase(av_frame) {}
 
-    Class& operator = (const Class &from) { FrameBase::assign(from); return *this;  }
-    Class& operator = (Class &&from) { FrameBase::assign(from); return *this;  }
+    //Class& operator = (const Class &from) { FrameBase::assign(from); return *this;  }
+    //Class& operator = (Class &&from) { FrameBase::assign(from); return *this;  }
 };
 
 GPC_AV_NAMESPACE_END

@@ -7,13 +7,19 @@
 
 namespace gpc {
 
+    template <typename T> struct is_integer: std::false_type {};
+    template <> struct is_integer<short> : std::true_type {};
+    template <> struct is_integer<int> : std::true_type {};
+    template <> struct is_integer<long> : std::true_type {};
+    template <> struct is_integer<long long> : std::true_type {};
+
     template <typename Int = int>
     class Rational {
     public:
 
         Rational(Int num_ = static_cast<Int>(0), Int den_ = static_cast<Int>(1)) : num(num_), den(den_) {}
 
-        template <typename IntOther, bool = std::is_integral<IntOther>::value>
+        template <typename IntOther>
         Rational(const Rational<IntOther> &from):
             num(static_cast<Int>(from.numerator())),
             den(static_cast<Int>(from.denominator()))
@@ -107,30 +113,32 @@ namespace gpc {
             return *this;
         }
 
-        template <typename Int_> friend std::ostream& operator << (std::ostream&, const Rational<Int_> &);
-        template <typename Int_> friend Rational<Int> operator * (Int op1, const Rational<Int_> &op2);
+        //template <typename Int_> friend std::ostream& operator<< (std::ostream&, const Rational<Int_> &);
+        //template <typename Int_> friend Rational<Int_> operator * (Int_ op1, const Rational<Int_> &op2);
 
         Int num, den;
     };
 
-    // TODO: replace this with automatic conversion from int to Rational<>
-
-    template <typename Int1, typename Int2, 
-        bool = std::is_integral<Int1>::value, 
-        bool = std::is_integral<Int2>::value,
-        typename Int = std::common_type<Int1, Int2>::type
-    >
-    auto operator * (Int1 op1, const Rational<Int2> &op2) -> Rational<Int>
-    {
-        return Rational<Int>(op1) * Rational<Int>(op2);
-    }
-
-    template <typename Int>
-    std::ostream& operator << (std::ostream &os, const Rational<Int> &r)
-    {
-        os << r.num << "/" << r.den;
-
-        return os;
-    }
-
 } // ns gpc
+
+// TODO: replace this with automatic conversion from int to Rational<>
+
+template <typename Int1, typename Int2,
+    bool = std::is_integral<Int1>::value,
+    bool = std::is_integral<Int2>::value,
+    typename Int = std::common_type<Int1, Int2>::type
+>
+auto operator * (Int1 op1, const gpc::Rational<Int2> &op2) -> gpc::Rational<Int>
+{
+    return gpc::Rational<Int>(op1) * gpc::Rational<Int>(op2);
+}
+
+template <typename Int>
+std::ostream& operator << (std::ostream &os, const gpc::Rational<Int> &r)
+{
+    static_assert(!std::is_enum<Int_>::value);
+
+    os << r.num << "/" << r.den;
+
+    return os;
+}
