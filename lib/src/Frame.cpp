@@ -5,7 +5,7 @@ extern "C" {
 #include "libavutil/frame.h"
 }
 
-#include "checked_calls.hpp"
+#include <gpc/_av/checked_calls.hpp>
 
 #include <gpc/_av/Frame.hpp>
 

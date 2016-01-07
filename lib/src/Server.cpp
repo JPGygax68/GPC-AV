@@ -4,7 +4,7 @@ extern "C" {
 #include "libavformat/avformat.h"
 }
 
-#include "checked_calls.hpp"
+#include <gpc/_av/checked_calls.hpp>
 
 #include <gpc/_av/Server.hpp>
 

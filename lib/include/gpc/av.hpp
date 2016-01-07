@@ -4,6 +4,7 @@
 #include <string>
 
 #include "_av/config.hpp"
+#include "_av/checked_calls.hpp"
 
 #ifndef DONT_USE_GPC_AV_DEMUXER
 #include "_av/Demuxer.hpp"

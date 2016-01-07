@@ -29,7 +29,7 @@ inline bool retval_ok(T *pointer) { return pointer != nullptr; }
 
 inline void throw_error(int errnum, const std::string &context) { throw Error(errnum, context); }
 
-template <typename T> void throw_error(T *resptr, const std::string &context) { throw BadAllocation(context); }
+template <typename T> void throw_error(T *, const std::string &context) { throw BadAllocation(context); }
 
 template <typename Fn, typename... Args>
 typename std::result_of<Fn(Args...)>::type
@@ -47,6 +47,7 @@ GPC_AV_NAMESPACE_END
 
 #if defined (_DEBUG)  
 #define _av(fn, ...) gpc::av::checked_call(#fn, __LINE__, __FILE__, fn, __VA_ARGS__)
+#define AV(fn, ...) gpc::av::checked_call(#fn, __LINE__, __FILE__, fn, __VA_ARGS__)
 #else
 #define _av(fn, ...) fn(__VA_ARGS__)
 #endif  

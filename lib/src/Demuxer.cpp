@@ -11,7 +11,7 @@ extern "C" {
 #include "libavcodec/avcodec.h"
 }
 
-#include "checked_calls.hpp"
+#include <gpc/_av/checked_calls.hpp>
 
 #include <gpc/_av/config.hpp>
 //#include <gpc/_av/Packet.hpp>
@@ -189,7 +189,6 @@ void Demuxer::Impl::open(const std::string &url)
     assert(!format_context);
 
     _av(avformat_open_input, &format_context, url.c_str(), nullptr, nullptr); // TODO: support options in last parameter
-
 }
 
 void Demuxer::Impl::start()

@@ -6,7 +6,7 @@ extern "C" {
 #include "libavcodec/avcodec.h"
 }
 
-#include "checked_calls.hpp"
+#include <gpc/_av/checked_calls.hpp>
 
 #include <gpc/_av/internal/Decoder.hpp>
 #include <gpc/_av/internal/Decoder_Impl.hpp>

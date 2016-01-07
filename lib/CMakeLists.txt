@@ -25,6 +25,7 @@ set(SOURCE_FILES
 set(HEADER_FILES 
   "include/gpc/av" 
   "include/gpc/av.hpp"
+  "include/gpc/_av/checked_calls.hpp"
   "include/gpc/_av/MediaType.hpp"
   "include/gpc/_av/CodecIDs.hpp"
   "include/gpc/_av/config.hpp"
@@ -46,7 +47,6 @@ set(HEADER_FILES
   "include/gpc/_av/Muxer.hpp"
   "include/gpc/_av/common.hpp"
   "include/gpc/Rational.hpp"  # TODO: move into its own library
-  "src/checked_calls.hpp"
 )
 
 add_library(${PROJECT_NAME} STATIC ${SOURCE_FILES} ${HEADER_FILES})

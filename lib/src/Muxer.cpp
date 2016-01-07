@@ -14,7 +14,7 @@ extern "C" {
 #include "libavutil/intreadwrite.h"
 }
 
-#include "checked_calls.hpp"
+#include <gpc/_av/checked_calls.hpp>
 #include <gpc/_av/VideoStream.hpp>
 
 #include <gpc/_av/Muxer.hpp>
