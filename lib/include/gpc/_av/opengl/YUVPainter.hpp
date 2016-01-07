@@ -24,7 +24,7 @@ namespace gl {
 
         /**  video_format must be AV_PIX_FMT_YUV420P or AV_PIX_FMT_YUVJ420P
          */
-        void get_resources(int video_format);
+        void get_resources();
 
         void free_resources();
 
@@ -47,11 +47,12 @@ namespace gl {
          */
         //void prepare_frame(const Frame &, bool load_image = true);
 
-        void set_modelview_matrix (const float *matrix);
+        // void set_modelview_matrix (const float *matrix);
+        // void set_projection_matrix(const float *matrix);
 
-        void set_projection_matrix(const float *matrix);
+        void set_shader_uniforms();
 
-        void disable_texture_units();
+        void bind_textures();
 
         /** The compiled and linked shader program to use for rendering. Use as argument to
         glUseProgram().

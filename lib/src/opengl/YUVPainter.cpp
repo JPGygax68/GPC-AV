@@ -9,7 +9,7 @@ extern "C" {
 #pragma warning(push)
 #pragma warning(disable: 4251)
 #include <glbinding/gl/gl.h>
-#include <glbinding/Binding.h>
+//#include <glbinding/Binding.h>
 #pragma warning(pop)
 #include <gpc/gl/shader_program.hpp>
 #include <gpc/gl/uniform.hpp>
@@ -28,10 +28,10 @@ namespace gl {
 
     struct YUVPainter::Impl {
 
-        void get_resources(int video_format);
+        void get_resources();
         void free_resources();
 
-        void set_frame_size(const Size &);
+        void set_frame_size(const Size&);
 
         void upload_frame(const Frame&);
 
@@ -39,11 +39,13 @@ namespace gl {
 
         //void initialize(int format, const Size &size);
         //void cleanup();
+        // prepare_frame(const Frame &, bool load_image);
+        //void set_modelview_matrix (const float *matrix);
+        //void set_projection_matrix(const float *matrix);
 
-        void prepare_frame(const Frame &, bool load_image);
-        void set_modelview_matrix (const float *matrix);
-        void set_projection_matrix(const float *matrix);
-        void disable_texture_units();
+        void set_shader_uniforms();
+
+        void bind_textures();
 
         GLuint  frag_sh;
         GLuint  Y_tex, Cr_tex, Cb_tex;
@@ -56,9 +58,9 @@ namespace gl {
 
     YUVPainter::~YUVPainter() = default;
 
-    void YUVPainter::get_resources(int video_format)
+    void YUVPainter::get_resources()
     {
-        p->get_resources(video_format);
+        p->get_resources();
     }
 
     void YUVPainter::free_resources()
@@ -90,7 +92,7 @@ namespace gl {
 
     // void YUVPainter::prepare_frame(const Frame &frame, bool load_image) { p->prepare_frame(frame, load_image); }
 
-    void YUVPainter::set_modelview_matrix(const float * matrix)
+    /* void YUVPainter::set_modelview_matrix(const float * matrix)
     {
         p->set_modelview_matrix(matrix);
     }
@@ -98,12 +100,22 @@ namespace gl {
     void YUVPainter::set_projection_matrix(const float * matrix)
     {
         p->set_projection_matrix(matrix);
+    } */
+
+    void YUVPainter::set_shader_uniforms()
+    {
+        p->set_shader_uniforms();
     }
 
-    void YUVPainter::disable_texture_units()
+    void YUVPainter::bind_textures()
+    {
+        p->bind_textures();
+    }
+
+    /* void YUVPainter::disable_texture_units()
     {
         p->disable_texture_units();
-    }
+    } */
 
     // IMPLEMENTATION HELPERS --------------------------------------
 
@@ -113,10 +125,10 @@ namespace gl {
 
         GL(GenTextures, 1, &texture);
         GL(BindTexture, GL_TEXTURE_2D, texture);
-        //GL(TexImage2D, GL_TEXTURE_2D, 0, (GLint) GL_LUMINANCE, width, height, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, nullptr);
+        GL(TexImage2D, GL_TEXTURE_2D, 0, (GLint)GL_LUMINANCE, 1920, 1080, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, nullptr);
         // TODO: does the following work when no size has been set ?
-        GL(TexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, (GLint) GL_LINEAR); //GL_NEAREST);
-        GL(TexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, (GLint) GL_LINEAR); //GL_NEAREST);
+        GL(TexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, (GLint)GL_LINEAR);
+        GL(TexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, (GLint)GL_LINEAR); //GL_NEAREST);
 
         return texture;
     }
@@ -158,22 +170,15 @@ namespace gl {
         }
     } */
 
-    void YUVPainter::Impl::get_resources(int video_format)
+    void YUVPainter::Impl::get_resources()
     {
         frag_sh = GL(CreateShader, GL_FRAGMENT_SHADER);
 
         gpc::gl::compileShader(frag_sh, fragment_source);
 
-        switch (video_format)
-        {
-        case AV_PIX_FMT_YUV420P: case AV_PIX_FMT_YUVJ420P:
-            Y_tex  = make_mono_texture();
-            Cr_tex = make_mono_texture();
-            Cb_tex = make_mono_texture();
-            break;
-        default:
-            throw std::runtime_error("YUVPainter.get_resources: unsupported video format");
-        }
+        Y_tex  = make_mono_texture();
+        Cr_tex = make_mono_texture();
+        Cb_tex = make_mono_texture();
     }
 
     void YUVPainter::Impl::free_resources()
@@ -233,7 +238,28 @@ namespace gl {
         ::gpc::gl::setUniform(4, 2);    // Texture unit for Cb
     } */
 
-    void YUVPainter::Impl::disable_texture_units()
+    void YUVPainter::Impl::set_shader_uniforms()
+    {
+        ::gpc::gl::setUniform(2, 0);    // Texture unit for Y
+        ::gpc::gl::setUniform(3, 1);    // Texture unit for Cr
+        ::gpc::gl::setUniform(4, 2);    // Texture unit for Cb
+    }
+    
+    void YUVPainter::Impl::bind_textures()
+    {
+        GL(ActiveTexture, GL_TEXTURE0 + 0);
+        GL(BindTexture, GL_TEXTURE_2D, Y_tex);
+
+        GL(ActiveTexture, GL_TEXTURE0 + 1);
+        GL(BindTexture, GL_TEXTURE_2D, Cb_tex);
+
+        GL(ActiveTexture, GL_TEXTURE0 + 2);
+        GL(BindTexture, GL_TEXTURE_2D, Cr_tex);
+
+        GL(ActiveTexture, GL_TEXTURE0 + 0); // for convention only
+    }
+
+    /* void YUVPainter::Impl::disable_texture_units()
     {
         for (int i = 0; i < 3; i++)
         {
@@ -243,9 +269,9 @@ namespace gl {
         }
 
         GL(ActiveTexture, GL_TEXTURE0);
-    }
+    } */
 
-    void YUVPainter::Impl::set_modelview_matrix(const float * matrix)
+    /* void YUVPainter::Impl::set_modelview_matrix(const float * matrix)
     {
         ::gpc::gl::setUniformMatrix4(0, matrix);
     }
@@ -253,7 +279,7 @@ namespace gl {
     void YUVPainter::Impl::set_projection_matrix(const float * matrix)
     {
         ::gpc::gl::setUniformMatrix4(1, matrix);
-    }
+    } */
 
 } // ns gl
 
