@@ -1,5 +1,7 @@
 project(libGPCAVpp)
 
+set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/CMake ${CMAKE_MODULE_PATH})
+
 set(SOURCE_FILES 
   "src/CodecIDs.cpp"
   "src/Player.cpp"
@@ -129,10 +131,12 @@ if (TARGET GLBinding)
 else()
     find_package(GLBinding REQUIRED)
     target_include_directories(${PROJECT_NAME} PRIVATE ${GLBINDING_INCLUDE_DIR})
+    message("GLBINDING_LIBRARIES:${GLBINDING_LIBRARIES}")
+    message("GLBINDING_DEBUG_LIBRARIES:${GLBINDING_DEBUG_LIBRARIES}")
     target_link_libraries(${PROJECT_NAME} PRIVATE 
-        $<$<CONFIG:release>:${GLBINDING_LIBRARIES}>
-        $<$<CONFIG:debug>:${GLBINDING_DEBUG_LIBRARIES}>)
-    #target_compile_definitions(${PROJECT_NAME} PRIVATE GLBINDING_STATIC)
+        $<$<CONFIG:Release>:${GLBINDING_LIBRARIES}>
+        $<$<CONFIG:Debug>:${GLBINDING_DEBUG_LIBRARIES}>)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE GLBINDING_STATIC)
 endif()
 
 # GPC GL utilities
