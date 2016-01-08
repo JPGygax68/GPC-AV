@@ -6,9 +6,7 @@ GPC_AV_NAMESPACE_START
 
 class VideoFrame : public Frame<VideoFrame> {
 public:
-    typedef struct {
-        int w, h;
-    } Size;
+    typedef struct { int w, h; } Size;
 
     using Frame::Frame;
     

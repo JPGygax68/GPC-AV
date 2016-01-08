@@ -14,7 +14,7 @@ namespace gl {
     class YUVPainter {
     public:
         typedef unsigned int GLuint; // We define this here so we don't have to import a GL header
-        typedef VideoFrame::Size Size;
+        using Size = VideoFrame::Size;
         typedef struct {
             const uint8_t *y, *u, *v;
         } Frame;
@@ -27,6 +27,8 @@ namespace gl {
         void get_resources();
 
         void free_resources();
+
+        auto frame_size() const -> Size;
 
         void set_frame_size(const Size &);
 

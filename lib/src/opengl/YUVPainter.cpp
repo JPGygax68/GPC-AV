@@ -68,6 +68,11 @@ namespace gl {
         p->free_resources();
     }
 
+    auto YUVPainter::frame_size() const -> Size
+    {
+        return p->frame_size;
+    }
+
     void YUVPainter::set_frame_size(const Size &size)
     {
         p->set_frame_size(size);
