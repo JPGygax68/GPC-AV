@@ -9,8 +9,10 @@ extern "C" {
 #pragma warning(push)
 #pragma warning(disable: 4251)
 #include <glbinding/gl/gl.h>
-//#include <glbinding/Binding.h>
+#include <glbinding/Binding.h>
+using namespace gl;
 #pragma warning(pop)
+#include <gpc/gl/wrappers.hpp>
 #include <gpc/gl/shader_program.hpp>
 #include <gpc/gl/uniform.hpp>
 
