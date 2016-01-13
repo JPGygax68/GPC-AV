@@ -188,7 +188,7 @@ namespace gl {
 
     void YUVPainter::Impl::free_resources()
     {
-        GL(DeleteTextures, 1, &Y_tex); Y_tex = 0;
+        GL(DeleteTextures, 1, &Y_tex ); Y_tex  = 0;
         GL(DeleteTextures, 1, &Cr_tex); Cr_tex = 0;
         GL(DeleteTextures, 1, &Cb_tex); Cb_tex = 0;
         GL(DeleteShader, frag_sh); frag_sh = 0;
@@ -196,11 +196,14 @@ namespace gl {
 
     void YUVPainter::Impl::set_frame_size(const Size &size)
     {
-        set_texture_size(Y_tex , size.w    , size.h    );
-        set_texture_size(Cr_tex, size.w / 2, size.h / 2);
-        set_texture_size(Cb_tex, size.w / 2, size.h / 2);
+        if (size.w != frame_size.w || size.h != frame_size.h)
+        {
+            set_texture_size(Y_tex, size.w, size.h);
+            set_texture_size(Cr_tex, size.w / 2, size.h / 2);
+            set_texture_size(Cb_tex, size.w / 2, size.h / 2);
 
-        frame_size = size;
+            frame_size = size;
+        }
     }
 
     void YUVPainter::Impl::upload_frame(const Frame &frame)

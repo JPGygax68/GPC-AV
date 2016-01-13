@@ -2,6 +2,12 @@ project(libGPCAVpp)
 
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/CMake ${CMAKE_MODULE_PATH})
 
+if (CMAKE_SIZEOF_VOID_P MATCHES 8)
+	set( PROJECT_ARCH "x86_64" )
+else(CMAKE_SIZEOF_VOID_P MATCHES 8)
+	set( PROJECT_ARCH "x86" )
+endif(CMAKE_SIZEOF_VOID_P MATCHES 8)
+
 set(SOURCE_FILES 
   "src/CodecIDs.cpp"
   "src/Player.cpp"
@@ -90,14 +96,16 @@ endforeach()
 
 # FFmpeg
 
+set(FFmpeg_ROOT "" CACHE PATH "Root of FFmpeg library (libAV)")
+
 foreach (lib "avformat" "avcodec" "avutil" "swscale")
 
 	# Library files
-	find_library(${lib}_LIB_RELEASE "${lib}")
+	find_library(${lib}_LIB_RELEASE "${lib}" PATHS ${FFmpeg_ROOT}/lib/${PROJECT_ARCH} ${FFmpeg_ROOT}/lib)
 	if (NOT ${lib}_LIB_RELEASE)
 		message(FATAL_ERROR "Could not find release version of library \"${lib}\"")
 	endif()
-	find_library(${lib}_LIB_DEBUG "${lib}")
+	find_library(${lib}_LIB_DEBUG "${lib}" PATH ${FFmpeg_ROOT}/lib/${PROJECT_ARCH} ${FFmpeg_ROOT}/lib)
 	if (NOT ${lib}_LIB_DEBUG)
 		message(FATAL_ERROR "Could not find debug version of library \"${lib}\"")
 	endif()
@@ -107,7 +115,7 @@ foreach (lib "avformat" "avcodec" "avutil" "swscale")
 	)
 
 	# Header file
-	find_path(${lib}_INCLUDE "lib${lib}/${lib}.h")
+	find_path(${lib}_INCLUDE "lib${lib}/${lib}.h" PATHS ${FFmpeg_ROOT}/include)
 	if (NOT ${lib}_INCLUDE)
 		message(FATAL_ERROR "Could not find header file of library \"${lib}\"")
 	endif()
