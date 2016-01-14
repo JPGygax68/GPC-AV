@@ -46,8 +46,7 @@ checked_call(const char *text, int line, const char *file, Fn fn, Args&&... args
 GPC_AV_NAMESPACE_END
 
 #if defined (_DEBUG)  
-#define _av(fn, ...) gpc::av::checked_call(#fn, __LINE__, __FILE__, fn, __VA_ARGS__)
 #define AV(fn, ...) gpc::av::checked_call(#fn, __LINE__, __FILE__, fn, __VA_ARGS__)
 #else
-#define _av(fn, ...) fn(__VA_ARGS__)
+#define AV(fn, ...) fn(__VA_ARGS__)
 #endif  
