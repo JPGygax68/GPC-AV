@@ -166,10 +166,6 @@ void Muxer::Impl::open(const std::string &url)
     seq = 0;
 }
 
-void Muxer::Impl::close()
-{
-}
-
 auto Muxer::Impl::get_sdp_data() -> std::string
 {
     char buffer[4096];
