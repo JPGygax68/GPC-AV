@@ -1,3 +1,4 @@
+#include "..\include\gpc\_av\Player.hpp"
 #include <functional>
 #include <deque>
 #include <thread>
@@ -57,6 +58,7 @@ struct Player::Impl {
 
     void play();
     void pause();
+    void stop();
 
     auto process_video_frame(const VideoFrame &) -> bool;
 
@@ -101,6 +103,11 @@ void Player::open(const std::string & url) { p->open(url); }
 void Player::play() { p->play(); }
 
 void Player::pause() { p->pause(); }
+
+void Player::stop()
+{
+    p->stop();
+}
 
 auto Player::peek_newest_video_frame() -> const VideoFrame *
 {
@@ -157,6 +164,11 @@ void Player::Impl::pause()
         demuxer.suspend();
         state = PAUSED; // TODO: notify subscribers ?
     }
+}
+
+void Player::Impl::stop()
+{
+    demuxer.stop();
 }
 
 auto Player::Impl::peek_newest_video_frame() -> const VideoFrame *
