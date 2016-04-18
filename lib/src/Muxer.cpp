@@ -49,7 +49,7 @@ Muxer::Muxer():
     _p(new Impl())
 {
     av_register_all();
-    _av(avformat_network_init); // TODO: only do this if necessary
+    AV(avformat_network_init); // TODO: only do this if necessary
 }
 
 Muxer::~Muxer()
@@ -130,7 +130,7 @@ static auto find_next_nal_unit(const uint8_t *start, const uint8_t *end) -> cons
 
 void Muxer::Impl::set_format(const std::string short_name)
 {
-    output_format = _av(av_guess_format, short_name.c_str(), nullptr, nullptr);
+    output_format = AV(av_guess_format, short_name.c_str(), nullptr, nullptr);
 }
 
 void Muxer::Impl::open(const std::string &url)
@@ -154,20 +154,16 @@ void Muxer::Impl::open(const std::string &url)
         }
     }
 
-    _av(avformat_alloc_output_context2, &format_ctx, output_format, nullptr, url.c_str());
+    AV(avformat_alloc_output_context2, &format_ctx, output_format, nullptr, url.c_str());
 
     // Open the output file, if necessary
     if (!(output_format->flags & AVFMT_NOFILE))
     {
-        _av(avio_open, &format_ctx->pb, url.c_str(), AVIO_FLAG_WRITE);
+        AV(avio_open, &format_ctx->pb, url.c_str(), AVIO_FLAG_WRITE);
         // TODO: question: is it still possible to add streams after that ?
     }
 
     seq = 0;
-}
-
-void Muxer::Impl::close()
-{
 }
 
 auto Muxer::Impl::get_sdp_data() -> std::string
@@ -181,9 +177,9 @@ auto Muxer::Impl::get_sdp_data() -> std::string
 
 void Muxer::Impl::add_video_stream(CodecID codec_id, int width, int height)
 {
-    auto codec = _av(avcodec_find_encoder, (AVCodecID) (int) codec_id);
+    auto codec = AV(avcodec_find_encoder, (AVCodecID) (int) codec_id);
 
-    video_st = _av(avformat_new_stream, format_ctx, codec);
+    video_st = AV(avformat_new_stream, format_ctx, codec);
 
     auto c = video_st->codec; // codec context
 
@@ -210,7 +206,7 @@ void Muxer::Impl::write_header()
     av_sdp_create(&format_ctx, 1, sdp, sizeof(sdp));
     std::cerr << "SDP:" << std::endl << sdp;
 
-    _av(avformat_write_header, format_ctx, nullptr);
+    AV(avformat_write_header, format_ctx, nullptr);
 }
 
 void Muxer::Impl::send_packet(int stream_index, const uint8_t * data, int size,
@@ -228,7 +224,7 @@ void Muxer::Impl::send_packet(int stream_index, const uint8_t * data, int size,
     pkt.pos = pos;
 
     //_av(av_interleaved_write_frame, format_ctx, &pkt);
-    _av(av_write_frame, format_ctx, &pkt);
+    AV(av_write_frame, format_ctx, &pkt);
 }
 
 void Muxer::Impl::send_h264_hevc(int stream_index, const uint8_t * data, int size, int64_t pts, int64_t dts, int duration)

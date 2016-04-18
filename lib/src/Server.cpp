@@ -54,8 +54,8 @@ void Server::Impl::listen(const std::string &url, SessionInitiator cb)
 
     av_log_set_level(AV_LOG_TRACE);
 
-    _av(av_dict_set, &options, "listen", "2", 0);
-    int code = _av(avio_open2, &server, url.c_str(), AVIO_FLAG_WRITE, nullptr, &options);
+    AV(av_dict_set, &options, "listen", "2", 0);
+    int code = AV(avio_open2, &server, url.c_str(), AVIO_FLAG_WRITE, nullptr, &options);
 
     std::thread listener([this, cb]() {
 

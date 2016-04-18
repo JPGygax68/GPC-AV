@@ -54,7 +54,8 @@ namespace gl {
 
     // PUBLIC METHODS -----------------------------------------------
 
-    YUVPainter::YUVPainter() : p(new Impl()) {}
+    YUVPainter::YUVPainter() : 
+        p(new Impl()) {}
 
     YUVPainter::~YUVPainter() = default;
 

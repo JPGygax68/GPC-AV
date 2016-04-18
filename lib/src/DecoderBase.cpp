@@ -46,7 +46,7 @@ auto DecoderBase::time_base() const -> duration_t
 DecoderBase::Impl::Impl() = default;
 
 DecoderBase::Impl::Impl(AVCodecContext *context_, AVCodec *codec_) :
-    context(context_), codec(codec_), frame(_av(av_frame_alloc))
+    context(context_), codec(codec_), frame(AV(av_frame_alloc))
 {
 }
 

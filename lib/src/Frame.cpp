@@ -40,7 +40,7 @@ static void increment_frees()
 
 FrameBase::FrameBase()
 {
-    frame = _av(av_frame_alloc);
+    frame = AV(av_frame_alloc);
     //increment_allocs();
 }
 
@@ -53,14 +53,14 @@ FrameBase::FrameBase(FrameBase&& from)
 FrameBase::FrameBase(const FrameBase& from)
 {
     //assert(from.frame->buf[0]);
-    frame = _av(av_frame_clone, from.frame);
+    frame = AV(av_frame_clone, from.frame);
     //increment_clones();
 }
 
 void FrameBase::assign(const FrameBase &from)
 {
     assert(from.frame->buf[0]);
-    frame = _av(av_frame_clone, from.frame);
+    frame = AV(av_frame_clone, from.frame);
     //increment_clones();
 }
 
@@ -71,7 +71,7 @@ void FrameBase::assign(FrameBase &&from)
 }
 
 FrameBase::FrameBase(AVFrame *from): 
-    frame(_av(av_frame_clone, from))
+    frame(AV(av_frame_clone, from))
 {
     //increment_clones();
 }

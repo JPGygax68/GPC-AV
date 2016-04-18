@@ -188,7 +188,7 @@ void Demuxer::Impl::open(const std::string &url)
 
     assert(!format_context);
 
-    _av(avformat_open_input, &format_context, url.c_str(), nullptr, nullptr); // TODO: support options in last parameter
+    AV(avformat_open_input, &format_context, url.c_str(), nullptr, nullptr); // TODO: support options in last parameter
 }
 
 void Demuxer::Impl::start()
