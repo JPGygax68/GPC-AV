@@ -50,6 +50,7 @@ namespace gl {
         GLuint  frag_sh;
         GLuint  Y_tex, Cr_tex, Cb_tex;
         Size    frame_size;
+        Size    tex_size;
     };
 
     // PUBLIC METHODS -----------------------------------------------
@@ -116,6 +117,11 @@ namespace gl {
     void YUVPainter::bind_textures()
     {
         p->bind_textures();
+    }
+
+    auto YUVPainter::normalized_texture_width() -> GLfloat
+    {
+        return (GLfloat) ((GLdouble) p->frame_size.w / (GLdouble) p->tex_size.w);
     }
 
     /* void YUVPainter::disable_texture_units()
@@ -199,9 +205,11 @@ namespace gl {
     {
         if (size.w != frame_size.w || size.h != frame_size.h)
         {
-            set_texture_size(Y_tex, size.w, size.h);
-            set_texture_size(Cr_tex, size.w / 2, size.h / 2);
-            set_texture_size(Cb_tex, size.w / 2, size.h / 2);
+            tex_size = { 16 * ((size.w + 15) / 16), size.h };
+
+            set_texture_size(Y_tex , tex_size.w    , tex_size.h    );
+            set_texture_size(Cr_tex, tex_size.w / 2, tex_size.h / 2);
+            set_texture_size(Cb_tex, tex_size.w / 2, tex_size.h / 2);
 
             frame_size = size;
         }
@@ -213,15 +221,15 @@ namespace gl {
 
         GL(ActiveTexture, GL_TEXTURE0 + 0);
         GL(BindTexture, GL_TEXTURE_2D, Y_tex);
-        GL(TexSubImage2D, GL_TEXTURE_2D, 0, 0, 0, frame_size.w, frame_size.h, GL_LUMINANCE, GL_UNSIGNED_BYTE, frame.y);
+        GL(TexSubImage2D, GL_TEXTURE_2D, 0, 0, 0, tex_size.w    , tex_size.h    , GL_LUMINANCE, GL_UNSIGNED_BYTE, frame.y);
 
         GL(ActiveTexture, GL_TEXTURE0 + 1);
         GL(BindTexture, GL_TEXTURE_2D, Cb_tex);
-        GL(TexSubImage2D, GL_TEXTURE_2D, 0, 0, 0, frame_size.w / 2, frame_size.h / 2, GL_LUMINANCE, GL_UNSIGNED_BYTE, frame.u);
+        GL(TexSubImage2D, GL_TEXTURE_2D, 0, 0, 0, tex_size.w / 2, tex_size.h / 2, GL_LUMINANCE, GL_UNSIGNED_BYTE, frame.u);
 
         GL(ActiveTexture, GL_TEXTURE0 + 2);
         GL(BindTexture, GL_TEXTURE_2D, Cr_tex);
-        GL(TexSubImage2D, GL_TEXTURE_2D, 0, 0, 0, frame_size.w / 2, frame_size.h / 2, GL_LUMINANCE, GL_UNSIGNED_BYTE, frame.v);
+        GL(TexSubImage2D, GL_TEXTURE_2D, 0, 0, 0, tex_size.w / 2, tex_size.h / 2, GL_LUMINANCE, GL_UNSIGNED_BYTE, frame.v);
     }
 
     /* void YUVPainter::Impl::prepare_frame(const Frame &frame, bool load_image)
