@@ -4,7 +4,7 @@ set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/CMake ${CMAKE_MODULE_PATH})
 
 if (CMAKE_SIZEOF_VOID_P MATCHES 8)
 	set( PROJECT_ARCH "x86_64" )
-else(CMAKE_SIZEOF_VOID_P MATCHES 8)
+else(CMAKE_SIZEOF_VOID_P MATCHES 4)
 	set( PROJECT_ARCH "x86" )
 endif(CMAKE_SIZEOF_VOID_P MATCHES 8)
 
@@ -76,7 +76,9 @@ set(GENERATED "${CMAKE_CURRENT_BINARY_DIR}/generated")
 target_include_directories("${PROJECT_NAME}" PUBLIC ${GENERATED})
 
 # Find the GPC Bin2C utility
-find_package(GPCBin2C REQUIRED)
+if (NOT TARGET gpcbin2c)
+    find_package(gpcbin2c REQUIRED)
+endif()
 
 # Add a custom target and a dependency for each shader file
 
@@ -86,7 +88,7 @@ foreach(shader ${SHADER_FILES})
   add_custom_command(
     OUTPUT ${shader_header}
     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${shader}
-    COMMAND GPCBin2C --input=${CMAKE_CURRENT_SOURCE_DIR}/${shader} --output=${shader_header}
+    COMMAND gpcbin2c --input=${CMAKE_CURRENT_SOURCE_DIR}/${shader} --output=${shader_header}
   )
   target_sources(${PROJECT_NAME} PRIVATE ${SHADER_FILES} )
   target_sources(${PROJECT_NAME} PRIVATE ${shader_header})
