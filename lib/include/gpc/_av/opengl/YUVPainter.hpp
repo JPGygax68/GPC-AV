@@ -56,6 +56,8 @@ namespace gl {
 
         void bind_textures();
 
+        auto normalized_texture_width () -> GLfloat;
+
         /** The compiled and linked shader program to use for rendering. Use as argument to
         glUseProgram().
         */
