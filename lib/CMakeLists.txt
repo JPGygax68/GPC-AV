@@ -96,6 +96,8 @@ endforeach()
 
 # FFmpeg
 
+if (0)
+
 set(FFmpeg_ROOT "" CACHE PATH "Root of FFmpeg library (libAV)")
 
 foreach (lib "avformat" "avcodec" "avutil" "swscale")
@@ -122,6 +124,46 @@ foreach (lib "avformat" "avcodec" "avutil" "swscale")
 	target_include_directories(${PROJECT_NAME} PRIVATE ${${lib}_INCLUDE})
 	
 endforeach()
+
+else()
+
+set(FFmpeg_ROOT "" CACHE PATH "FFMPEG library root directory")
+
+if (${CMAKE_SIZEOF_VOID_P} EQUAL 8)
+    set(FFmpeg_ARCH "x64")
+else()
+    set(FFmpeg_ARCH "x86")
+endif()
+
+foreach (lib "avformat" "avcodec" "avutil" "swscale")
+
+	# Library files
+	find_library(${lib}_LIB_RELEASE "${lib}" PATHS "${FFmpeg_ROOT}" "${FFmpeg_ROOT}/lib/${FFmpeg_ARCH}")
+	if (NOT ${lib}_LIB_RELEASE)
+		message(FATAL_ERROR "Could not find release version of library \"${lib}\"")
+	endif()
+	find_library(${lib}_LIB_DEBUG "${lib}d" PATHS "${FFmpeg_ROOT}" "${FFmpeg_ROOT}/lib/${FFmpeg_ARCH}")
+	if (NOT ${lib}_LIB_DEBUG)
+		#message(FATAL_ERROR "Could not find debug version of library \"${lib}\"")
+        #set(${lib}_LIB_DEBUG "${${lib}_LIB_RELEASE}")
+		message(WARNING "Could not find debug version of library \"${lib}\", falling back to release version")
+	    find_library(${lib}_LIB_DEBUG "${lib}" PATHS "${FFmpeg_ROOT}" "${FFmpeg_ROOT}/lib/${FFmpeg_ARCH}")
+	endif()
+	target_link_libraries(${PROJECT_NAME} PUBLIC 
+		$<$<CONFIG:Release>:${${lib}_LIB_RELEASE}>
+		$<$<CONFIG:Debug>:${${lib}_LIB_DEBUG}>
+	)
+
+	# Header file
+	find_path(${lib}_INCLUDE "lib${lib}/${lib}.h" HINTS "${FFmpeg_ROOT}")
+	if (NOT ${lib}_INCLUDE)
+		message(FATAL_ERROR "Could not find header file of library \"${lib}\"")
+	endif()
+	target_include_directories(${PROJECT_NAME} PRIVATE ${${lib}_INCLUDE})
+	
+endforeach()
+
+endif()
 
 # The following is said to be no longer needed with C++11, which unfortunately
 # CMake expressely refuses to detect as such (only individual features) are 
