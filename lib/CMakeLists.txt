@@ -24,6 +24,7 @@ set(SOURCE_FILES
   "src/Rational.cpp"
   "src/Muxer.cpp"
   "src/opengl/YUVPainter.cpp"
+  "src/opengl/import_opengl.hpp"
   "src/HighResClock.cpp"
   "include/gpc/_av/internal/Decoder.ipp"
 )

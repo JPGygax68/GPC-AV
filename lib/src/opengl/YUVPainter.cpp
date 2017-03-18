@@ -1,20 +1,14 @@
 #include <map>
 #include <stdexcept>
 #include <iostream>
-
 extern "C" {
 #include "libavutil/pixfmt.h"
 }
-
-#pragma warning(push)
-#pragma warning(disable: 4251)
-#include <glbinding/gl/gl.h>
-//#include <glbinding/Binding.h>
-#pragma warning(pop)
+#include "./import_opengl.hpp"
 #include <gpc/gl/shader_program.hpp>
 #include <gpc/gl/uniform.hpp>
-
 #include <gpc/_av/opengl/YUVPainter.hpp>
+
 
 using namespace std;
 
@@ -22,7 +16,9 @@ GPC_AV_NAMESPACE_START
 
 namespace gl {
 
+#ifdef USE_GLBINDING
     using namespace ::gl;
+#endif
 
     // PIMPL DECLARATION --------------------------------------------
 
@@ -46,6 +42,7 @@ namespace gl {
         void set_shader_uniforms();
 
         void bind_textures();
+
 
         GLuint  frag_sh;
         GLuint  Y_tex, Cr_tex, Cb_tex;
