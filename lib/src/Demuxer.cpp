@@ -176,7 +176,7 @@ Demuxer::Impl::Impl():
 
 Demuxer::Impl::~Impl()
 {
-	std::cout << "Demuxer::Impl dtor called" << std::endl;
+	//std::cout << "Demuxer::Impl dtor called" << std::endl;
 
     stop();
 }
