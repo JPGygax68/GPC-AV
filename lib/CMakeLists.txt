@@ -4,7 +4,7 @@ set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/CMake ${CMAKE_MODULE_PATH})
 
 if (CMAKE_SIZEOF_VOID_P MATCHES 8)
 	set( PROJECT_ARCH "x86_64" )
-else(CMAKE_SIZEOF_VOID_P MATCHES 8)
+else(CMAKE_SIZEOF_VOID_P MATCHES 4)
 	set( PROJECT_ARCH "x86" )
 endif(CMAKE_SIZEOF_VOID_P MATCHES 8)
 
@@ -24,6 +24,7 @@ set(SOURCE_FILES
   "src/Rational.cpp"
   "src/Muxer.cpp"
   "src/opengl/YUVPainter.cpp"
+  "src/opengl/import_opengl.hpp"
   "src/HighResClock.cpp"
   "include/gpc/_av/internal/Decoder.ipp"
 )
@@ -76,7 +77,9 @@ set(GENERATED "${CMAKE_CURRENT_BINARY_DIR}/generated")
 target_include_directories("${PROJECT_NAME}" PUBLIC ${GENERATED})
 
 # Find the GPC Bin2C utility
-find_package(GPCBin2C REQUIRED)
+if (NOT TARGET gpcbin2c)
+    find_package(gpcbin2c REQUIRED)
+endif()
 
 # Add a custom target and a dependency for each shader file
 
@@ -86,7 +89,7 @@ foreach(shader ${SHADER_FILES})
   add_custom_command(
     OUTPUT ${shader_header}
     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${shader}
-    COMMAND GPCBin2C --input=${CMAKE_CURRENT_SOURCE_DIR}/${shader} --output=${shader_header}
+    COMMAND gpcbin2c --input=${CMAKE_CURRENT_SOURCE_DIR}/${shader} --output=${shader_header}
   )
   target_sources(${PROJECT_NAME} PRIVATE ${SHADER_FILES} )
   target_sources(${PROJECT_NAME} PRIVATE ${shader_header})
@@ -95,6 +98,8 @@ endforeach()
 # DEPENDENCIES -------------------------------------------------------
 
 # FFmpeg
+
+if (0)
 
 set(FFmpeg_ROOT "" CACHE PATH "Root of FFmpeg library (libAV)")
 
@@ -122,6 +127,46 @@ foreach (lib "avformat" "avcodec" "avutil" "swscale")
 	target_include_directories(${PROJECT_NAME} PRIVATE ${${lib}_INCLUDE})
 	
 endforeach()
+
+else()
+
+set(FFmpeg_ROOT "" CACHE PATH "FFMPEG library root directory")
+
+if (${CMAKE_SIZEOF_VOID_P} EQUAL 8)
+    set(FFmpeg_ARCH "x64")
+else()
+    set(FFmpeg_ARCH "x86")
+endif()
+
+foreach (lib "avformat" "avcodec" "avutil" "swscale")
+
+	# Library files
+	find_library(${lib}_LIB_RELEASE "${lib}" PATHS "${FFmpeg_ROOT}" "${FFmpeg_ROOT}/lib/${FFmpeg_ARCH}")
+	if (NOT ${lib}_LIB_RELEASE)
+		message(FATAL_ERROR "Could not find release version of library \"${lib}\"")
+	endif()
+	find_library(${lib}_LIB_DEBUG "${lib}d" PATHS "${FFmpeg_ROOT}" "${FFmpeg_ROOT}/lib/${FFmpeg_ARCH}")
+	if (NOT ${lib}_LIB_DEBUG)
+		#message(FATAL_ERROR "Could not find debug version of library \"${lib}\"")
+        #set(${lib}_LIB_DEBUG "${${lib}_LIB_RELEASE}")
+		message(WARNING "Could not find debug version of library \"${lib}\", falling back to release version")
+	    find_library(${lib}_LIB_DEBUG "${lib}" PATHS "${FFmpeg_ROOT}" "${FFmpeg_ROOT}/lib/${FFmpeg_ARCH}")
+	endif()
+	target_link_libraries(${PROJECT_NAME} PUBLIC 
+		$<$<CONFIG:Release>:${${lib}_LIB_RELEASE}>
+		$<$<CONFIG:Debug>:${${lib}_LIB_DEBUG}>
+	)
+
+	# Header file
+	find_path(${lib}_INCLUDE "lib${lib}/${lib}.h" HINTS "${FFmpeg_ROOT}")
+	if (NOT ${lib}_INCLUDE)
+		message(FATAL_ERROR "Could not find header file of library \"${lib}\"")
+	endif()
+	target_include_directories(${PROJECT_NAME} PRIVATE ${${lib}_INCLUDE})
+	
+endforeach()
+
+endif()
 
 # The following is said to be no longer needed with C++11, which unfortunately
 # CMake expressely refuses to detect as such (only individual features) are 
