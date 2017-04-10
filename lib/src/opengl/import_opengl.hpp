@@ -11,6 +11,10 @@ using namespace gl;
 
 #else
 
+#ifdef _WIN32
+#define WINDOWS_LEAN_AND_MEAN
+#include <Windows.h>
+#endif
 #include <GL/glew.h>
 
 #endif

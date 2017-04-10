@@ -204,6 +204,7 @@ endif()
 get_target_property(libGPCGLWrappers_INCLUDE_DIRECTORIES libGPCGLWrappers INTERFACE_INCLUDE_DIRECTORIES)
 target_include_directories(${PROJECT_NAME} PRIVATE "${libGPCGLWrappers_INCLUDE_DIRECTORIES}")
 
+if (0)
 # EXPORT && INSTALLATION --------------------------------------------
 
 export(TARGETS ${PROJECT_NAME}  FILE "${PROJECT_NAME}-targets.cmake")
@@ -211,3 +212,4 @@ configure_file("PROJECT-config.cmake.in" "${PROJECT_NAME}-config.cmake" @ONLY)
 export(PACKAGE ${PROJECT_NAME})
 
 # TODO: install
+endif(0)
