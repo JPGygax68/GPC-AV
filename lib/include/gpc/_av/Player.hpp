@@ -26,6 +26,7 @@ public:
 
     void play();
     void pause();
+    void stop();
 
     auto peek_newest_video_frame() -> const VideoFrame *;
 

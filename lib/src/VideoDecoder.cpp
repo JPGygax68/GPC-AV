@@ -59,10 +59,10 @@ auto VideoDecoder::create_from_stream(const VideoStream &stream) -> VideoDecoder
     auto dec_ctx = stream.stream->codec;
 
     // Find the decoder for the stream
-    auto dec = _av(avcodec_find_decoder, dec_ctx->codec_id);
+    auto dec = AV(avcodec_find_decoder, dec_ctx->codec_id);
 
     // Open the decoder
-    _av(avcodec_open2, dec_ctx, dec, nullptr);
+    AV(avcodec_open2, dec_ctx, dec, nullptr);
 
     // Create an implementation
     // TODO: may need the stream as well
@@ -94,7 +94,7 @@ VideoDecoder::Impl::~Impl()
     av_frame_free(&frame);
 
     if (context) {
-        _av(avcodec_close, context);
+        AV(avcodec_close, context);
         context = nullptr;
     }
 }
